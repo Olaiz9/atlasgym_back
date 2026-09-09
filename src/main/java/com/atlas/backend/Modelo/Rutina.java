@@ -12,7 +12,7 @@ public class Rutina {
     private ObjetivoRutina objetivo;
     private boolean esGenerica;
     private LocalDate fechaCreacion;
-    private List<DiaRutina> diasRutina = new ArrayList<>(); // <-- List en vez de ArrayList
+    private List<DiaRutina> diasRutina = new ArrayList<>(); //List en vez de ArrayList
 
     public Rutina() {
     }
@@ -86,4 +86,9 @@ public class Rutina {
     public void addDiasRutina(DiaRutina diaRutina) {
         this.diasRutina.add(diaRutina);
     }
+    public void removeDiasRutina(DiaRutina diaRutina) {
+        this.diasRutina.remove(diaRutina);
+    }
+
+
 }
