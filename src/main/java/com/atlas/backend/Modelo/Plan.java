@@ -1,14 +1,30 @@
 package com.atlas.backend.Modelo;
 
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 
+@Entity
+@Table(name = "planes")
 public class Plan {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_plan")
     private Long idPlan;
+
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
+
+    @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
+
+    @Column(name = "dia_por_semana", length = 50)
     private String diaPorSemana;
+
+    @Column(name = "precio", nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
+
+    @Column(name = "activo", nullable = false)
     private boolean activo;
 
     public Plan() {
@@ -21,6 +37,14 @@ public class Plan {
         this.diaPorSemana = diaPorSemana;
         this.descripcion = descripcion;
         this.nombre = nombre;
+    }
+
+    public Plan(String nombre, String descripcion, String diaPorSemana, BigDecimal precio, boolean activo) {
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.diaPorSemana = diaPorSemana;
+        this.precio = precio;
+        this.activo = activo;
     }
 
     public Long getIdPlan() {

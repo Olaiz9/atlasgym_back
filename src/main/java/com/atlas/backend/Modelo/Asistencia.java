@@ -1,11 +1,21 @@
 package com.atlas.backend.Modelo;
 
+import jakarta.persistence.*;
 import java.time.LocalDate;
 
+@Entity
+@Table(name = "asistencias")
 public class Asistencia {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "alumno_id", nullable = false)
     private Alumno alumno;
 
     public Asistencia() {
@@ -13,6 +23,11 @@ public class Asistencia {
 
     public Asistencia(Long id, LocalDate fecha, Alumno alumno) {
         this.id = id;
+        this.fecha = fecha;
+        this.alumno = alumno;
+    }
+
+    public Asistencia(LocalDate fecha, Alumno alumno) {
         this.fecha = fecha;
         this.alumno = alumno;
     }

@@ -1,15 +1,36 @@
 package com.atlas.backend.Modelo;
 
+import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "dias_rutina")
 public class DiaRutina {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
+
+    @Column(name = "orden", nullable = false)
     private int orden;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rutina_id", nullable = false)
     private Rutina rutinaDia;
+
+    @OneToMany(mappedBy = "diaRutina", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Ejercicio> ejercicios = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+        name = "dias_rutina_videos",
+        joinColumns = @JoinColumn(name = "dia_rutina_id"),
+        inverseJoinColumns = @JoinColumn(name = "video_tecnica_id")
+    )
     private List<VideoTecnica> videos = new ArrayList<>();
 
     public DiaRutina() {
@@ -20,8 +41,14 @@ public class DiaRutina {
         this.nombre = nombre;
         this.orden = orden;
         this.rutinaDia = rutinaDia;
-        this.ejercicios = ejercicios;
-        this.videos = videos;
+        this.ejercicios = ejercicios != null ? ejercicios : new ArrayList<>();
+        this.videos = videos != null ? videos : new ArrayList<>();
+    }
+
+    public DiaRutina(String nombre, int orden, Rutina rutinaDia) {
+        this.nombre = nombre;
+        this.orden = orden;
+        this.rutinaDia = rutinaDia;
     }
 
     public Long getId() {
@@ -65,11 +92,17 @@ public class DiaRutina {
     }
 
     public void addEjercicio(Ejercicio ejercicio) {
-        this.ejercicios.add(ejercicio);
+        if (ejercicio != null) {
+            this.ejercicios.add(ejercicio);
+            ejercicio.setDiaRutina(this);
+        }
     }
 
     public void removeEjercicio(Ejercicio ejercicio) {
-        this.ejercicios.remove(ejercicio);
+        if (ejercicio != null) {
+            this.ejercicios.remove(ejercicio);
+            ejercicio.setDiaRutina(null);
+        }
     }
 
     public List<VideoTecnica> getVideos() {
@@ -81,10 +114,14 @@ public class DiaRutina {
     }
 
     public void addVideo(VideoTecnica video) {
-        this.videos.add(video);
+        if (video != null) {
+            this.videos.add(video);
+        }
     }
 
     public void removeVideo(VideoTecnica video) {
-        this.videos.remove(video);
+        if (video != null) {
+            this.videos.remove(video);
+        }
     }
 }

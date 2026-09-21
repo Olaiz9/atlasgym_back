@@ -1,18 +1,36 @@
 package com.atlas.backend.Modelo;
 
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.List; // <-- Agregado
+import java.util.List;
 
+@Entity
+@Table(name = "rutinas")
 public class Rutina {
 
-    private Long id; // <-- Long con mayúscula
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
+
+    @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "objetivo", length = 50)
     private ObjetivoRutina objetivo;
+
+    @Column(name = "es_generica", nullable = false)
     private boolean esGenerica;
+
+    @Column(name = "fecha_creacion")
     private LocalDate fechaCreacion;
-    private List<DiaRutina> diasRutina = new ArrayList<>(); //List en vez de ArrayList
+
+    @OneToMany(mappedBy = "rutinaDia", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DiaRutina> diasRutina = new ArrayList<>();
 
     public Rutina() {
     }
@@ -24,7 +42,15 @@ public class Rutina {
         this.objetivo = objetivo;
         this.esGenerica = esGenerica;
         this.fechaCreacion = fechaCreacion;
-        this.diasRutina = diasRutina;
+        this.diasRutina = diasRutina != null ? diasRutina : new ArrayList<>();
+    }
+
+    public Rutina(String nombre, String descripcion, ObjetivoRutina objetivo, boolean esGenerica, LocalDate fechaCreacion) {
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.objetivo = objetivo;
+        this.esGenerica = esGenerica;
+        this.fechaCreacion = fechaCreacion;
     }
 
     public Long getId() {
@@ -84,11 +110,16 @@ public class Rutina {
     }
 
     public void addDiasRutina(DiaRutina diaRutina) {
-        this.diasRutina.add(diaRutina);
+        if (diaRutina != null) {
+            this.diasRutina.add(diaRutina);
+            diaRutina.setRutinaDia(this);
+        }
     }
+
     public void removeDiasRutina(DiaRutina diaRutina) {
-        this.diasRutina.remove(diaRutina);
+        if (diaRutina != null) {
+            this.diasRutina.remove(diaRutina);
+            diaRutina.setRutinaDia(null);
+        }
     }
-
-
 }
