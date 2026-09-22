@@ -41,7 +41,7 @@ public class Alumno {
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Usuario usuario;
 
@@ -53,13 +53,13 @@ public class Alumno {
     @JoinColumn(name = "rutina_id")
     private Rutina rutinaAlumno;
 
-    @OneToMany(mappedBy = "alumno", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "alumno", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<Asistencia> asistencias = new ArrayList<>();
 
-    @OneToMany(mappedBy = "alumno", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "alumno", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<Pago> pagosAlumnos = new ArrayList<>();
 
-    @OneToMany(mappedBy = "alumno", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "alumno", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<SesionEntrenamiento> sesionesEntrenamiento = new ArrayList<>();
 
     public Alumno() {
@@ -163,6 +163,18 @@ public class Alumno {
 
     public void setActivo(boolean activo) {
         this.activo = activo;
+    }
+
+    /** Baja administrativa: conserva la ficha y todas sus relaciones historicas. */
+    public void darDeBaja() {
+        this.activo = false;
+    }
+
+    /** Evita que un borrado JPA accidental sustituya la baja administrativa. */
+    @PreRemove
+    private void impedirBorradoFisico() {
+        throw new IllegalStateException(
+                "El alumno conserva su historial. Use darDeBaja() en lugar de eliminarlo.");
     }
 
     public LocalDate getUltimaAsistencia() {
