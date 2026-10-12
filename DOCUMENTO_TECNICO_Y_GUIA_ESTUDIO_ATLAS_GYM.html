@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>ATLAS GYM — Manual Técnico de Arquitectura y Guía Maestra de Estudio</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+            @bottom-right {
+                content: counter(page);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.6;
+            font-size: 11pt;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .cover-page {
+            page-break-after: always;
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            border-left: 8px solid #2563eb;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 4px;
+        }
+
+        .cover-badge {
+            display: inline-block;
+            background-color: #1e40af;
+            color: #ffffff;
+            font-size: 10pt;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+        }
+
+        .cover-title {
+            font-size: 32pt;
+            font-weight: 900;
+            color: #0f172a;
+            line-height: 1.15;
+            margin: 0 0 15px 0;
+        }
+
+        .cover-subtitle {
+            font-size: 16pt;
+            color: #475569;
+            font-weight: 500;
+            margin-bottom: 40px;
+            line-height: 1.4;
+        }
+
+        .cover-meta {
+            margin-top: auto;
+            border-top: 2px solid #cbd5e1;
+            padding-top: 20px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            font-size: 10.5pt;
+        }
+
+        .cover-meta strong {
+            color: #0f172a;
+        }
+
+        h1 {
+            color: #1e3a8a;
+            font-size: 20pt;
+            font-weight: 800;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 8px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            page-break-after: avoid;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 14pt;
+            font-weight: 700;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            color: #0f172a;
+            font-size: 12pt;
+            font-weight: 700;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            page-break-after: avoid;
+        }
+
+        p, li {
+            text-align: justify;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0 25px 0;
+            font-size: 9.5pt;
+            page-break-inside: avoid;
+        }
+
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 10px;
+            border: 1px solid #1e293b;
+        }
+
+        td {
+            padding: 7px 10px;
+            border: 1px solid #cbd5e1;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        code {
+            font-family: "Consolas", "Courier New", monospace;
+            background-color: #f1f5f9;
+            color: #b91c1c;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9.5pt;
+        }
+
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 8.5pt;
+            line-height: 1.45;
+            overflow-x: auto;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        .callout {
+            border-left: 4px solid #3b82f6;
+            background-color: #eff6ff;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+            page-break-inside: avoid;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            color: #1d4ed8;
+            margin-bottom: 4px;
+        }
+
+        .callout-warning {
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+
+        .callout-warning .callout-title {
+            color: #b45309;
+        }
+
+        .callout-success {
+            border-left-color: #10b981;
+            background-color: #ecfdf5;
+        }
+
+        .callout-success .callout-title {
+            color: #047857;
+        }
+
+        .diagram-box {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 14px;
+            font-family: "Consolas", monospace;
+            font-size: 9pt;
+            line-height: 1.35;
+            white-space: pre;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .toc {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .toc li {
+            padding: 4px 0;
+            border-bottom: 1px dotted #cbd5e1;
+        }
+
+        .toc a {
+            text-decoration: none;
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .badge-role {
+            background-color: #3b82f6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PORTADA PROFESIONAL -->
+    <div class="cover-page">
+        <span class="cover-badge">Documento Técnico Oficial · Versión 1.0</span>
+        <h1 class="cover-title">ATLAS GYM<br>Manual Técnico y Guía Maestra de Estudio</h1>
+        <div class="cover-subtitle">
+            Arquitectura de Software, Código de Producción y Fundamentos de Ingeniería: De Cero a Producción en una API REST y Frontend Moderno
+        </div>
+
+        <div class="cover-meta">
+            <div>
+                <strong>Equipo de Desarrollo:</strong> Lucas · Bruno · Augusto<br>
+                <strong>Proyecto:</strong> Plataforma ATLAS Gym (Web & API REST)<br>
+                <strong>Ecosistema Front:</strong> Next.js · TypeScript · Tailwind CSS
+            </div>
+            <div>
+                <strong>Ecosistema Back:</strong> Spring Boot 3.4.3 · Java 17 · MySQL 8<br>
+                <strong>Seguridad:</strong> JWT (HMAC-SHA256) · BCrypt · Stateless<br>
+                <strong>Fecha:</strong> Octubre 2026
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE CONTENIDOS -->
+    <div class="page-break"></div>
+    <h1>Tabla de Contenidos</h1>
+    <div class="toc">
+        <ul>
+            <li><strong>1. Prólogo y Filosofía del Proyecto</strong></li>
+            <li><strong>2. Visión General de la Arquitectura (MVC Desacoplado)</strong></li>
+            <li><strong>3. Fundamentos Cruciales de Estudio: Desde Cero Absoluto</strong>
+                <ul>
+                    <li>3.1. ¿Cómo funciona la Web? El Protocolo HTTP, Verbos y Códigos de Estado</li>
+                    <li>3.2. Formato JSON: La lengua franca entre Frontend y Backend</li>
+                    <li>3.3. Stateless (Sin Estado): Por qué no guardamos sesiones en memoria</li>
+                    <li>3.4. CORS: El mecanismo de seguridad del navegador</li>
+                    <li>3.5. Variables de Entorno y Portabilidad en Equipos</li>
+                </ul>
+            </li>
+            <li><strong>4. El Ecosistema Frontend: Next.js, React y TypeScript</strong>
+                <ul>
+                    <li>4.1. Por qué Next.js frente a React simple</li>
+                    <li>4.2. TypeScript y la garantía de tipos en compilación</li>
+                    <li>4.3. El patrón de Estado Centralizado (lib/store.tsx)</li>
+                    <li>4.4. Testing automatizado con Vitest (114 tests)</li>
+                </ul>
+            </li>
+            <li><strong>5. El Ecosistema Backend: Spring Boot, Java 17 y MySQL</strong>
+                <ul>
+                    <li>5.1. La Arquitectura en Capas Estricta (Controlador, Servicio, Repositorio, Modelo)</li>
+                    <li>5.2. Inyección de Dependencias y Principio IoC</li>
+                    <li>5.3. JPA y Hibernate: Mapeo Objeto-Relacional (ORM) y Relaciones</li>
+                    <li>5.4. DTOs con Records de Java 17: Por qué NUNCA exponer Entidades</li>
+                    <li>5.5. @Transactional: Integridad ACID y Rollback Automático</li>
+                    <li>5.6. Manejo Global de Errores con @RestControllerAdvice</li>
+                </ul>
+            </li>
+            <li><strong>6. Seguridad y Criptografía Moderna</strong>
+                <ul>
+                    <li>6.1. Hashing de Contraseñas con BCrypt (Salt y funciones unidireccionales)</li>
+                    <li>6.2. JSON Web Tokens (JWT): Anatomía, firma y expiración</li>
+                    <li>6.3. Cadena de Filtros de Spring Security (OncePerRequestFilter)</li>
+                    <li>6.4. Control de Acceso Basado en Roles (RBAC con @PreAuthorize)</li>
+                </ul>
+            </li>
+            <li><strong>7. Las 7 Reglas de Negocio Críticas de ATLAS Gym</strong>
+                <ul>
+                    <li>7.1. Anti-fraude del Tótem (ventana deslizante de 100 minutos)</li>
+                    <li>7.2. Snapshot Inmutable de Pagos</li>
+                    <li>7.3. Baja Administrativa Lógica (@PreRemove)</li>
+                    <li>7.4. Estado de Cuenta Dinámico (AL_DIA, PENDIENTE, MOROSO, INACTIVO)</li>
+                    <li>7.5. Protección de Planes con Alumnos Activos</li>
+                    <li>7.6. Propagación de Rutinas por Clave Foránea</li>
+                    <li>7.7. Workout Tracker y Sobrecarga Progresiva</li>
+                </ul>
+            </li>
+            <li><strong>8. Mapa Completo de Endpoints REST del Backend</strong></li>
+            <li><strong>9. Guía de Conexión Frontend & Backend (Next.js & Spring Boot)</strong></li>
+            <li><strong>10. Plan de Estudio y Preguntas de Entrevista para el Equipo</strong></li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 1: PRÓLOGO -->
+    <h1>1. Prólogo y Filosofía del Proyecto</h1>
+    <p>
+        Este proyecto representa un hito fundamental para <strong>Lucas, Bruno y Augusto</strong>: es su <strong>primer trabajo profesional remunerado</strong> y, al mismo tiempo, el laboratorio definitivo para consolidar conocimientos de ingeniería de software full-stack.
+    </p>
+    <p>
+        En el desarrollo de software profesional existe un estándar ético inquebrantable: <em>un ingeniero jamás entrega un sistema sin comprender con total profundidad cómo funciona cada una de sus partes</em>. No basta con que una pantalla se vea bonita o que un botón responda; es indispensable saber por qué se eligió cada patrón de diseño, qué ocurre en la base de datos cuando se pulsa un botón y cómo proteger la información sensible del cliente.
+    </p>
+    <div class="callout callout-success">
+        <div class="callout-title">El Objetivo de este Documento</div>
+        Servir como manual de referencia técnica del proyecto y como <strong>guía de estudio maestro</strong> para que todo el equipo domine desde los conceptos más elementales hasta las arquitecturas más complejas, preparándolos tanto para defender este trabajo como para superar cualquier entrevista técnica futura.
+    </div>
+
+    <!-- SECCIÓN 2: ARQUITECTURA GENERAL -->
+    <h1>2. Visión General de la Arquitectura</h1>
+    <p>
+        El sistema ATLAS Gym se diseñó bajo una arquitectura <strong>MVC Desacoplada (API REST)</strong>, dividiendo el sistema en dos proyectos completamente independientes que dialogan mediante HTTP y JSON:
+    </p>
+    <div class="diagram-box">
+[ FRONTEND: Next.js (React + TypeScript) ]         Puerto 3000
+                 │
+                 │  1. Petición HTTP (POST /api/auth/login) + JSON Payload
+                 ▼
+[ BACKEND: Spring Boot 3.4.3 (Java 17) ]           Puerto 8080
+  ├─ 1. Filtro JWT & Seguridad (Verifica token o credenciales)
+  ├─ 2. Controlador REST (@RestController: Atiende la comanda)
+  ├─ 3. Servicio de Negocio (@Service: El chef que aplica las reglas)
+  └─ 4. Repositorio JPA (@Repository: Consulta la despensa)
+                 │
+                 │  2. Consultas SQL generadas por Hibernate
+                 ▼
+[ BASE DE DATOS: MySQL 8 ]                        Puerto 3307
+  (Tablas, Índices optimizados, Claves Foráneas, Integridad Referencial)
+    </div>
+
+    <h3>¿Por qué esta separación y no un sistema todo-en-uno?</h3>
+    <ul>
+        <li><strong>Independencia de despliegue:</strong> el equipo de frontend puede actualizar estilos, textos y componentes sin necesidad de recompilar ni reiniciar el servidor de Spring Boot.</li>
+        <li><strong>Múltiples clientes:</strong> el backend no le pertenece solo a una página web. Si el día de mañana el gimnasio instala un Tótem físico en una Raspberry Pi o lanza una aplicación móvil en Flutter o React Native, <em>utilizan exactamente los mismos endpoints sin tocar una sola línea de Java</em>.</li>
+        <li><strong>Escalabilidad y Seguridad:</strong> la base de datos MySQL nunca queda expuesta a internet; solo el backend tiene acceso a ella.</li>
+    </ul>
+
+    <!-- SECCIÓN 3: FUNDAMENTOS DESDE CERO -->
+    <div class="page-break"></div>
+    <h1>3. Fundamentos Cruciales de Estudio: Desde Cero Absoluto</h1>
+
+    <h2>3.1. ¿Cómo funciona la Web? El Protocolo HTTP</h2>
+    <p>
+        Cada vez que el navegador interactúa con el servidor, intercambian mensajes bajo el protocolo <strong>HTTP (Hypertext Transfer Protocol)</strong>. Este modelo es estrictamente <strong>Petición-Respuesta (Request-Response)</strong>: el cliente pide algo, el servidor procesa y responde.
+    </p>
+    <h3>Los Verbos HTTP (Intención de la Petición):</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Verbo</th>
+                <th>Significado</th>
+                <th>¿Modifica datos?</th>
+                <th>Ejemplo en ATLAS Gym</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>GET</code></td>
+                <td>Consultar / Leer datos</td>
+                <td>No (Es idempotente)</td>
+                <td><code>GET /api/alumnos</code> (Lista los socios)</td>
+            </tr>
+            <tr>
+                <td><code>POST</code></td>
+                <td>Crear un nuevo recurso</td>
+                <td>Sí (Inserta en DB)</td>
+                <td><code>POST /api/alumnos</code> (Crea un nuevo socio)</td>
+            </tr>
+            <tr>
+                <td><code>PUT</code></td>
+                <td>Actualizar un recurso existente</td>
+                <td>Sí (Modifica fila)</td>
+                <td><code>PUT /api/alumnos/3</code> (Edita el socio con ID 3)</td>
+            </tr>
+            <tr>
+                <td><code>DELETE</code></td>
+                <td>Eliminar o dar de baja</td>
+                <td>Sí (Baja lógica)</td>
+                <td><code>DELETE /api/alumnos/3</code> (Baja lógica del socio)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Códigos de Estado HTTP (Status Codes):</h3>
+    <ul>
+        <li><code>200 OK</code>: Operación exitosa con datos devueltos.</li>
+        <li><code>201 Created</code>: Nuevo registro creado satisfactoriamente en la base de datos.</li>
+        <li><code>204 No Content</code>: Operación exitosa que no necesita devolver datos (ideal para borrados o bajas).</li>
+        <li><code>400 Bad Request</code>: La petición tiene errores de sintaxis o faltan campos obligatorios.</li>
+        <li><code>401 Unauthorized</code>: Falta autenticación (no enviaste token o las credenciales no son válidas).</li>
+        <li><code>403 Forbidden</code>: El usuario está autenticado, pero su rol no tiene permiso para ese recurso.</li>
+        <li><code>404 Not Found</code>: El recurso solicitado no existe en la base de datos.</li>
+        <li><code>409 Conflict</code>: Conflicto con el estado de la base de datos (ej. DNI ya registrado).</li>
+        <li><code>500 Internal Server Error</code>: Error no controlado en el servidor (un bug que debe corregirse).</li>
+    </ul>
+
+    <h2>3.2. Formato JSON: La lengua franca</h2>
+    <p>
+        <strong>JSON (JavaScript Object Notation)</strong> es el formato estándar mundial para transferir datos porque es texto plano, ligero y entendible tanto por humanos como por computadoras. Java serializa sus objetos en JSON y Next.js los deserializa en objetos JavaScript de manera transparente.
+    </p>
+
+    <h2>3.3. Stateless (Arquitectura Sin Estado)</h2>
+    <p>
+        En arquitecturas antiguas, el servidor guardaba en su memoria RAM una "sesión" para recordar quién era cada usuario. En arquitecturas modernas <strong>Stateless</strong>, el servidor <strong>no guarda nada en memoria</strong>. Cada petición incluye un token criptográfico (JWT) en la cabecera. Si el servidor se reinicia o se crean 5 réplicas del servidor, el usuario ni se entera porque la validez de su sesión viaja consigo mismo en el token.
+    </p>
+
+    <h2>3.4. CORS (Cross-Origin Resource Sharing)</h2>
+    <p>
+        CORS es un mecanismo de protección de <strong>los navegadores</strong>. Si tu frontend corre en <code>http://localhost:3000</code> y tu backend en <code>http://localhost:8080</code>, el navegador detecta que tienen diferentes puertos (orígenes distintos). Por seguridad, bloquea la petición a menos que el backend envíe cabeceras HTTP explícitas autorizando a <code>localhost:3000</code>. Esto quedó configurado en <code>SecurityConfig.java</code>.
+    </p>
+
+    <h2>3.5. Variables de Entorno y Portabilidad</h2>
+    <p>
+        En software profesional nunca se escriben contraseñas o puertos fijos en el código. En <code>application.properties</code> configuramos <code>${DB_PORT:3307}</code>. Si una variable de entorno <code>DB_PORT</code> existe en el sistema operativo, Spring la toma; de lo contrario, usa el puerto 3307 por defecto. Esto permite que el proyecto se ejecute en la máquina de Lucas, de Bruno o en un servidor en la nube sin tocar una sola línea de código.
+    </p>
+
+    <!-- SECCIÓN 4: FRONTEND -->
+    <div class="page-break"></div>
+    <h1>4. El Ecosistema Frontend: Next.js, React y TypeScript</h1>
+
+    <h2>4.1. Por qué Next.js frente a React simple</h2>
+    <p>
+        Un proyecto con React puro descarga un archivo HTML vacío y un JavaScript enorme, dejando todo el renderizado al navegador. <strong>Next.js</strong> es un framework empresarial sobre React que ofrece:
+    </p>
+    <ul>
+        <li><strong>Enrutamiento basado en archivos:</strong> crear una carpeta <code>app/alumnos/page.tsx</code> crea automáticamente la ruta web <code>/alumnos</code> sin necesidad de configurar librerías de rutas externas.</li>
+        <li><strong>Optimización de medios:</strong> el componente <code>&lt;Image /&gt;</code> redimensiona, convierte a formatos modernos (WebP) y retrasa la carga de imágenes que están fuera de la pantalla.</li>
+        <li><strong>División entre servidor y cliente:</strong> componentes del servidor rápidos y componentes del cliente interactivos mediante la directiva <code>"use client"</code>.</li>
+    </ul>
+
+    <h2>4.2. TypeScript y la Garantía de Tipos</h2>
+    <p>
+        TypeScript agrega un sistema de tipado estricto sobre JavaScript. Si el backend define que un socio tiene <code>dni: string</code> y en el frontend intentás acceder a <code>socio.cedula</code>, el compilador arroja un error antes de que el código llegue al navegador. En <code>lib/types.ts</code> están modelados todos los contratos de datos del sistema.
+    </p>
+
+    <h2>4.3. El Patrón de Estado Centralizado (`lib/store.tsx`)</h2>
+    <p>
+        Bruno estructuró el frontend con un patrón sumamente profesional: <strong>Context + Custom Hook (<code>useAppData</code>)</strong>.
+    </p>
+    <div class="callout callout-success">
+        <div class="callout-title">La Sabiduría Arquitectónica del Store</div>
+        Las pantallas individuales (como <code>/alumnos</code>, <code>/finanzas</code>, <code>/asistencias</code>) <strong>no hacen peticiones HTTP directamente</strong>. Le piden y envían datos exclusivamente al Store. Esto significa que para conectar el backend con el frontend, <strong>no hay que reescribir las páginas visuales</strong>; solo cambiamos las funciones internas del Store para que hagan <code>fetch()</code> a Spring Boot.
+    </div>
+
+    <h2>4.4. Testing Automatizado con Vitest</h2>
+    <p>
+        El frontend cuenta con <strong>114 tests automatizados</strong> que verifican reglas lógicas clave: cálculo de cuotas vencidas, consistencia de planes y validaciones de formularios. Esto asegura que cualquier refactorización o cambio de código no rompa funcionalidades previas.
+    </p>
+
+    <!-- SECCIÓN 5: BACKEND -->
+    <div class="page-break"></div>
+    <h1>5. El Ecosistema Backend: Spring Boot, Java 17 y MySQL</h1>
+
+    <h2>5.1. La Arquitectura en Capas Estricta</h2>
+    <p>
+        En Spring Boot el código se organiza en capas según su responsabilidad única:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Capa</th>
+                <th>Paquete</th>
+                <th>Anotación</th>
+                <th>Responsabilidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Controlador</strong></td>
+                <td><code>com.atlas.backend.Controlador</code></td>
+                <td><code>@RestController</code></td>
+                <td>Punto de entrada HTTP. Valida la petición entrante, llama al servicio y devuelve el código de estado adecuado (200, 201, 204).</td>
+            </tr>
+            <tr>
+                <td><strong>Servicio</strong></td>
+                <td><code>com.atlas.backend.Servicio</code></td>
+                <td><code>@Service</code></td>
+                <td><strong>El cerebro del negocio.</strong> Aplica las reglas del gimnasio, valida duplicados, maneja transacciones con <code>@Transactional</code>.</td>
+            </tr>
+            <tr>
+                <td><strong>Repositorio</strong></td>
+                <td><code>com.atlas.backend.Repositorio</code></td>
+                <td><code>@Repository</code></td>
+                <td>Acceso a la base de datos. Extiende <code>JpaRepository</code> y ejecuta consultas SQL/JPQL optimizadas.</td>
+            </tr>
+            <tr>
+                <td><strong>Modelo</strong></td>
+                <td><code>com.atlas.backend.Modelo</code></td>
+                <td><code>@Entity</code></td>
+                <td>Representación exacta de las tablas de MySQL mediante clases Java y anotaciones de JPA.</td>
+            </tr>
+            <tr>
+                <td><strong>DTO</strong></td>
+                <td><code>com.atlas.backend.Dto</code></td>
+                <td><code>record</code></td>
+                <td>Objetos inmutables de transferencia de datos. Son los contratos que viajan por la red hacia y desde Next.js.</td>
+            </tr>
+            <tr>
+                <td><strong>Excepciones</strong></td>
+                <td><code>com.atlas.backend.Excepciones</code></td>
+                <td><code>@RestControllerAdvice</code></td>
+                <td>Captura errores de negocio y validación en toda la app y devuelve respuestas JSON limpias y predecibles.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>5.2. Inyección de Dependencias (IoC)</h2>
+    <p>
+        En lugar de que cada clase cree a sus colaboradoras con <code>new</code>, Spring Boot utiliza el principio de <strong>Inversión de Control (IoC)</strong>. Cuando el servidor arranca, Spring crea una única instancia de cada clase anotada (los <em>Beans</em>) y las inyecta a través del constructor. Esto garantiza bajo acoplamiento y alta facilidad para hacer pruebas unitarias.
+    </p>
+
+    <h2>5.3. JPA y Hibernate: El Mapeo Objeto-Relacional</h2>
+    <p>
+        <strong>Hibernate</strong> traduce automáticamente nuestros objetos Java a tablas y columnas de MySQL:
+    </p>
+    <ul>
+        <li><code>@OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)</code>: Una Rutina tiene muchos Días. Si guardamos la Rutina, Hibernate guarda todos sus días hijos automáticamente. Si borramos un día de la lista en Java, Hibernate borra la fila huérfana en la base de datos.</li>
+        <li><code>@ManyToOne(fetch = FetchType.LAZY)</code>: Muchos Alumnos tienen un mismo Plan. Con carga perezosa (<em>Lazy</em>), Hibernate no carga los datos del plan a menos que se los pidamos explícitamente, ahorrando memoria y tiempo de CPU.</li>
+    </ul>
+
+    <h2>5.4. DTOs: Por qué NUNCA exponer Entidades</h2>
+    <div class="callout callout-warning">
+        <div class="callout-title">Regla de Oro de Seguridad y Rendimiento</div>
+        Jamás se debe devolver una entidad <code>@Entity</code> directamente en un controlador REST. Si devolvés <code>Alumno</code>, Jackson intentará serializar sus <code>Pagos</code>, los pagos serializarán al alumno, y se generará un bucle infinito que tumba el servidor con <code>StackOverflowError</code>. Además, la entidad <code>Usuario</code> contiene el hash de la contraseña, el cual jamás debe viajar al navegador. Los <strong>DTOs (Data Transfer Objects)</strong> resuelven esto enviando únicamente los datos necesarios y limpios.
+    </div>
+
+    <h2>5.5. `@Transactional`: Integridad ACID</h2>
+    <p>
+        Anotar un método con <code>@Transactional</code> asegura que todas las operaciones dentro de él se ejecuten como una única unidad atómica. Si se guardan 3 series de un ejercicio pero la cuarta falla por un error de conexión, <strong>Spring Boot ejecuta un Rollback automático</strong> y deja la base de datos intacta.
+    </p>
+
+    <!-- SECCIÓN 6: SEGURIDAD -->
+    <div class="page-break"></div>
+    <h1>6. Seguridad y Autenticación Moderna</h1>
+
+    <h2>6.1. Hashing de Contraseñas con BCrypt</h2>
+    <p>
+        Las contraseñas de los socios y administradores <strong>nunca se guardan en texto plano</strong>. Si alguien accede a la base de datos, solo verá una cadena ilegible como:
+    </p>
+    <pre><code>$2a$10$e8w9u6V0lqGZ9zJ4X9H8O.k2qM6j5P2B1F4Y7U8I9O0P1Q2R3S4T5</code></pre>
+    <p>
+        BCrypt es una función de hash <strong>unidireccional</strong>: nadie puede "desencriptarla". Para validar el login, el servidor toma la contraseña que escribió el usuario, le aplica el mismo algoritmo de hash con el Salt correspondiente, y verifica si los resultados coinciden.
+    </p>
+
+    <h2>6.2. JSON Web Tokens (JWT) en Detalle</h2>
+    <p>
+        Al hacer login exitoso, el servidor emite un <strong>Token JWT</strong> firmado criptográficamente con el algoritmo <strong>HMAC-SHA256</strong>. El token está compuesto por tres secciones:
+    </p>
+    <div class="diagram-box">
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9  .  eyJzdWIiOiJhZG1pbiIsImlkIjoxLCJyb2wiOiJBRE1JTiJ9  .  404E635266556A586E327235753878...
+───────────────┬───────────────────      ────────────────────┬─────────────────────────      ──────────────┬─────────────
+          1. HEADER                                      2. PAYLOAD                                   3. SIGNATURE
+(Algoritmo y tipo de token)                    (Datos: ID, Email, Rol, Expiración)             (Firma secreta del servidor)
+    </div>
+    <p>
+        Si un atacante en el navegador altera el Payload para cambiar su rol de <code>ALUMNO</code> a <code>ADMIN</code>, la firma secreta deja de coincidir inmediatamente y el servidor rechaza la petición con código <strong>403 Forbidden</strong>.
+    </p>
+
+    <h2>6.3. Cadena de Filtros de Spring Security</h2>
+    <p>
+        Cada solicitud que llega a Spring Boot pasa por <code>JwtAuthenticationFilter</code> antes de llegar a cualquier controlador. El filtro extrae el token del encabezado <code>Authorization: Bearer &lt;token&gt;</code>, valida la firma, comprueba que no haya expirado y establece los permisos en el contexto de seguridad de Spring.
+    </p>
+
+    <!-- SECCIÓN 7: REGLAS DE NEGOCIO -->
+    <div class="page-break"></div>
+    <h1>7. Las 7 Reglas de Negocio Críticas de ATLAS Gym</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Regla</th>
+                <th>Servicio Responsable</th>
+                <th>Problema que Resuelve y Funcionamiento Técnico</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>1. Anti-fraude del Tótem (100 min)</strong></td>
+                <td><code>AsistenciaService</code></td>
+                <td>Evita que un socio digite su DNI y se lo pase a un amigo que viene detrás. Si ya tiene un ingreso registrado en el día con menos de 100 minutos de diferencia, se rechaza con <code>"Tu sesión continúa activa"</code>. Si pasaron 100 min o más, se permite un reingreso legítimo.</td>
+            </tr>
+            <tr>
+                <td><strong>2. Snapshot Inmutable de Pagos</strong></td>
+                <td><code>PagoService</code></td>
+                <td>Si el gimnasio sube el precio de la cuota en noviembre, los recibos de octubre no deben cambiar de precio. Al cobrar, se guarda una copia estática en texto de <code>alumnoNombreHistorico</code> y el <code>monto</code> cobrado en ese momento.</td>
+            </tr>
+            <tr>
+                <td><strong>3. Baja Administrativa Lógica</strong></td>
+                <td><code>AlumnoService</code></td>
+                <td>Nunca se borra físicamente una fila con <code>DELETE</code> para no perder el historial de pagos y entrenamientos. Se ejecuta <code>darDeBaja()</code> (<code>activo = false</code>). La anotación <code>@PreRemove</code> en la entidad arroja una excepción si alguien intenta forzar un borrado físico.</td>
+            </tr>
+            <tr>
+                <td><strong>4. Estado de Cuenta Dinámico</strong></td>
+                <td><code>AlumnoService</code></td>
+                <td>No se guarda un valor fijo en la base (para no tener que actualizarlo todos los días 1). Se calcula al vuelo: <code>AL_DIA</code> (pagó el mes actual), <code>PENDIENTE</code> (período de gracia días 1 al 10), <code>MOROSO</code> (día 11 en adelante sin pago) e <code>INACTIVO</code> (más de 60 días sin pagar o baja lógica).</td>
+            </tr>
+            <tr>
+                <td><strong>5. Protección de Planes Activos</strong></td>
+                <td><code>PlanService</code></td>
+                <td>Si un administrador intenta borrar un plan que todavía tiene alumnos activos asignados, el servicio arroja una <code>BusinessException</code> con código <strong>HTTP 409 Conflict</strong> para evitar dejar socios huérfanos.</td>
+            </tr>
+            <tr>
+                <td><strong>6. Propagación de Rutinas por FK</strong></td>
+                <td><code>RutinaService</code></td>
+                <td>Los socios apuntan a la rutina por clave foránea. Si un profesor edita los ejercicios de una rutina, el cambio se refleja al instante en el celular de todos los alumnos asignados sin tener que actualizar registro por registro.</td>
+            </tr>
+            <tr>
+                <td><strong>7. Workout Tracker y Sobrecarga Progresiva</strong></td>
+                <td><code>SesionEntrenamientoService</code></td>
+                <td>Permite que cuando el alumno inicia su rutina, el endpoint <code>/api/sesiones/ultima</code> busque los pesos levantados en su sesión anterior para ese mismo día, facilitando la sobrecarga progresiva en sala.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- SECCIÓN 8: MAPA DE ENDPOINTS -->
+    <div class="page-break"></div>
+    <h1>8. Mapa Completo de Endpoints REST del Backend</h1>
+
+    <p>
+        Todos los endpoints del backend se encuentran organizados y securizados en el paquete <code>com.atlas.backend.Controlador</code>:
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Controlador</th>
+                <th>Método</th>
+                <th>Ruta</th>
+                <th>Seguridad</th>
+                <th>Descripción</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>AuthController</strong></td>
+                <td><code>POST</code><br><code>GET</code></td>
+                <td><code>/api/auth/login</code><br><code>/api/auth/perfil</code></td>
+                <td>Público<br>Autenticado</td>
+                <td>Login con verificación BCrypt y emisión de JWT.<br>Consulta de datos del usuario en sesión.</td>
+            </tr>
+            <tr>
+                <td><strong>AlumnoController</strong></td>
+                <td><code>GET</code><br><code>GET</code><br><code>GET</code><br><code>POST</code><br><code>PUT</code><br><code>DELETE</code></td>
+                <td><code>/api/alumnos</code><br><code>/api/alumnos/inactivos</code><br><code>/api/alumnos/{id}</code><br><code>/api/alumnos</code><br><code>/api/alumnos/{id}</code><br><code>/api/alumnos/{id}</code></td>
+                <td><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code></td>
+                <td>Lista de socios activos.<br>Lista de socios dados de baja.<br>Detalle de socio por ID.<br>Alta de nuevo socio.<br>Modificación de ficha.<br>Baja administrativa lógica (HTTP 204).</td>
+            </tr>
+            <tr>
+                <td><strong>AsistenciaController</strong></td>
+                <td><code>POST</code><br><code>GET</code><br><code>GET</code><br><code>GET</code></td>
+                <td><code>/api/asistencias/totem</code><br><code>/api/asistencias/aforo</code><br><code>/api/asistencias</code><br><code>/api/asistencias/distribucion</code></td>
+                <td>Público<br><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code></td>
+                <td>Check-in en el Kiosco por DNI (regla 100 min).<br>Contador de socios en sala en tiempo real.<br>Historial de ingresos por fecha.<br>Picos y distribución horaria (0 a 23 hs).</td>
+            </tr>
+            <tr>
+                <td><strong>PagoController</strong></td>
+                <td><code>POST</code><br><code>GET</code><br><code>GET</code></td>
+                <td><code>/api/pagos</code><br><code>/api/pagos</code><br><code>/api/pagos/alumno/{id}</code></td>
+                <td><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code>, <code>ALUMNO</code></td>
+                <td>Registro de cobro con snapshot inmutable.<br>Listado de cuotas (filtro opcional por mes).<br>Historial contable de un socio específico.</td>
+            </tr>
+            <tr>
+                <td><strong>PlanController</strong></td>
+                <td><code>GET</code><br><code>POST</code><br><code>PUT</code><br><code>DELETE</code></td>
+                <td><code>/api/planes</code><br><code>/api/planes</code><br><code>/api/planes/{id}</code><br><code>/api/planes/{id}</code></td>
+                <td>Autenticado<br><code>ADMIN</code><br><code>ADMIN</code><br><code>ADMIN</code></td>
+                <td>Planes de membresía activos.<br>Creación de nuevo plan.<br>Actualización de precio o días.<br>Eliminación protegida (bloquea si tiene alumnos).</td>
+            </tr>
+            <tr>
+                <td><strong>RutinaController</strong></td>
+                <td><code>GET</code><br><code>GET</code><br><code>POST</code><br><code>POST</code></td>
+                <td><code>/api/rutinas/genericas</code><br><code>/api/rutinas/mis-rutinas</code><br><code>/api/rutinas</code><br><code>/api/rutinas/{rId}/asignar/{aId}</code></td>
+                <td>Autenticado<br><code>ALUMNO</code><br><code>ADMIN</code><br><code>ADMIN</code></td>
+                <td>Catálogo de rutinas base del gimnasio.<br>Rutina activa del socio autenticado.<br>Creación de rutina con días y ejercicios.<br>Asignación de rutina a la ficha de un alumno.</td>
+            </tr>
+            <tr>
+                <td><strong>SesionController</strong></td>
+                <td><code>POST</code><br><code>GET</code></td>
+                <td><code>/api/sesiones</code><br><code>/api/sesiones/ultima</code></td>
+                <td><code>ADMIN</code>, <code>ALUMNO</code><br><code>ADMIN</code>, <code>ALUMNO</code></td>
+                <td>Guardar sesión completada del Workout Tracker.<br>Pesos de la sesión previa para sobrecarga progresiva.</td>
+            </tr>
+            <tr>
+                <td><strong>AvisoController</strong></td>
+                <td><code>GET</code><br><code>PUT</code><br><code>POST</code></td>
+                <td><code>/api/avisos/mis-avisos</code><br><code>/api/avisos/{id}/leido</code><br><code>/api/avisos</code></td>
+                <td><code>ALUMNO</code><br><code>ALUMNO</code><br><code>ADMIN</code></td>
+                <td>Avisos institucionales y privados del alumno.<br>Marcar aviso como leído.<br>Publicación de comunicado institucional.</td>
+            </tr>
+            <tr>
+                <td><strong>VideoTecnicaController</strong></td>
+                <td><code>GET</code><br><code>GET</code></td>
+                <td><code>/api/videoteca</code><br><code>/api/videoteca/grupo/{grupo}</code></td>
+                <td>Autenticado<br>Autenticado</td>
+                <td>Catálogo de videos de ejercicios.<br>Filtro por grupo muscular (Pecho, Espalda, etc.).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- SECCIÓN 9: CONEXIÓN -->
+    <div class="page-break"></div>
+    <h1>9. Guía de Conexión Frontend & Backend</h1>
+
+    <p>
+        Para conectar la interfaz de Next.js con el servidor de Spring Boot se sigue un procedimiento estándar de 3 pasos:
+    </p>
+
+    <h3>Paso 1: Crear el Cliente HTTP Centralizado (`lib/api.ts`)</h3>
+    <pre><code>// lib/api.ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+
+export async function apiFetch&lt;T&gt;(endpoint: string, options: RequestInit = {}): Promise&lt;T&gt; {
+  const token = typeof window !== "undefined" ? localStorage.getItem("atlas_jwt_token") : null;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.mensaje || `Error HTTP ${response.status}`);
+  }
+
+  if (response.status === 204) return null as T;
+  return response.json();
+}</code></pre>
+
+    <h3>Paso 2: Conectar el Login Real (`app/login/page.tsx`)</h3>
+    <p>
+        Al enviar el formulario de login, se realiza la petición <code>POST /api/auth/login</code>. Si las credenciales son válidas, se almacena el token en <code>localStorage</code> y se redirige a la pantalla principal.
+    </p>
+
+    <h3>Paso 3: Conectar el Store Global (`lib/store.tsx`)</h3>
+    <p>
+        En lugar de leer los arrays estáticos de <code>mock-data.ts</code>, las funciones de <code>useAppData()</code> llaman a <code>apiFetch("/alumnos")</code>, <code>apiFetch("/planes")</code>, etc., manteniendo intacta la lógica de los componentes de la interfaz.
+    </p>
+
+    <div class="callout callout-success">
+        <div class="callout-title">Usuarios Reales Sembrados por el Seeder (DataInitializer)</div>
+        <ul>
+            <li><strong>Administrador:</strong> <code>admin@atlasgym.com</code> / Contraseña: <code>admin123</code></li>
+            <li><strong>Alumno:</strong> <code>alumno@atlasgym.com</code> / Contraseña: <code>alumno123</code> (asociado a Lucas Pérez, DNI 42123456)</li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 10: PLAN DE ESTUDIO -->
+    <div class="page-break"></div>
+    <h1>10. Plan de Estudio y Preguntas de Entrevista para el Equipo</h1>
+
+    <p>
+        A continuación se detalla el temario ordenado por dificultad que <strong>Lucas, Bruno y Augusto</strong> deben dominar para defender este proyecto con solvencia profesional:
+    </p>
+
+    <h3>Nivel 1: Los Fundamentos Obligatorios</h3>
+    <ul>
+        <li>¿Qué es una API REST y por qué utilizamos los métodos GET, POST, PUT y DELETE?</li>
+        <li>¿Qué significa que una arquitectura sea Stateless y por qué no guardamos sesiones en memoria?</li>
+        <li>¿Qué es CORS y qué cabeceras envía el navegador en las solicitudes de comprobación previa (<em>Preflight OPTIONS</em>)?</li>
+        <li>¿Por qué se utilizan códigos de estado HTTP semánticos (200, 201, 204, 400, 401, 403, 404, 409) en vez de devolver siempre 200 con un mensaje de error?</li>
+    </ul>
+
+    <h3>Nivel 2: Backend y Persistencia</h3>
+    <ul>
+        <li>¿Cómo funciona la Inyección de Dependencias por constructor y por qué es superior a <code>@Autowired</code> sobre atributos?</li>
+        <li>¿Qué es el mapeo relacional en JPA/Hibernate y qué diferencia hay entre <code>FetchType.LAZY</code> y <code>FetchType.EAGER</code>?</li>
+        <li>¿Qué problema resuelven los DTOs (Records de Java 17) y por qué exponer entidades JPA genera fallos de seguridad y ciclos infinitos en JSON?</li>
+        <li>¿Qué significa el principio ACID y cómo actúa la anotación <code>@Transactional</code> ante un error en base de datos?</li>
+    </ul>
+
+    <h3>Nivel 3: Seguridad y Negocio</h3>
+    <ul>
+        <li>¿Por qué las contraseñas nunca se pueden "desencriptar" y cómo funciona el Salt de BCrypt?</li>
+        <li>¿Cuáles son las tres partes de un JWT y cómo detecta el servidor si el cliente alteró su rol en el Payload?</li>
+        <li>¿Cómo funciona el filtro <code>OncePerRequestFilter</code> en la cadena de seguridad de Spring?</li>
+        <li>Explicar en detalle las 7 reglas de negocio de ATLAS Gym (Tótem 100 min, snapshot de cobros, baja administrativa lógica, estado de cuenta dinámico).</li>
+    </ul>
+
+    <h3>Nivel 4: Frontend y Arquitectura de Estado</h3>
+    <ul>
+        <li>¿Por qué se utilizó el patrón Context + Custom Hook en <code>lib/store.tsx</code> en lugar de hacer llamadas fetch en cada pantalla?</li>
+        <li>¿Cómo viaja el token JWT en el encabezado <code>Authorization: Bearer &lt;token&gt;</code>?</li>
+        <li>¿Cómo se gestionan los mensajes de error devueltos por el <code>GlobalExceptionHandler</code> en los formularios de Next.js?</li>
+    </ul>
+
+    <div class="callout callout-success">
+        <div class="callout-title">Mensaje Final para el Equipo</div>
+        Tener un proyecto completo con esta calidad de arquitectura, seguridad por JWT, testing con 114 pruebas y reglas de negocio robustas en su primer trabajo remunerado los ubica <strong>muy por encima del promedio</strong> de desarrolladores junior en el mercado. Estudien este manual, háganse preguntas entre ustedes y siéntanse orgullosos del nivel de ingeniería que construyeron.
+    </div>
+
+</body>
+</html>

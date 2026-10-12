@@ -36,7 +36,6 @@ public class AsistenciaController {
         TotemCheckInResponseDto respuesta = asistenciaService.checkInPorDni(dto.dni());
         return ResponseEntity.ok(respuesta);
     }
-
     @GetMapping("/aforo")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AforoResponseDto> obtenerAforo() {
