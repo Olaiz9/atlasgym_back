@@ -78,6 +78,13 @@ public class PagoService {
     }
 
     @Transactional(readOnly = true)
+    public List<PagoResponseDto> listarTodos() {
+        return pagoRepository.findAll().stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public PagoResponseDto buscarPorId(Long id) {
         Pago pago = pagoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));

@@ -71,4 +71,58 @@ public class AuthService {
                 usuario.getFotoUrl()
         );
     }
+
+    @Transactional(readOnly = true)
+    public LoginResponse obtenerPerfil(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado con email: " + email, 404));
+
+        Long alumnoId = null;
+        String nombreMostrar = usuario.getEmail();
+
+        if (usuario.getAlumno() != null) {
+            alumnoId = usuario.getAlumno().getIdAlumno();
+            nombreMostrar = usuario.getAlumno().getNombre();
+        } else {
+            var alumnoOpt = alumnoRepository.findByUsuarioId(usuario.getId());
+            if (alumnoOpt.isPresent()) {
+                Alumno a = alumnoOpt.get();
+                alumnoId = a.getIdAlumno();
+                nombreMostrar = a.getNombre();
+            }
+        }
+
+        String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
+
+        return new LoginResponse(
+                null,
+                usuario.getId(),
+                nombreMostrar,
+                usuario.getEmail(),
+                rolNombre,
+                alumnoId,
+                usuario.getFotoUrl()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Long resolverUsuarioIdPorEmail(String email) {
+        return usuarioRepository.findByEmail(email)
+                .map(Usuario::getId)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado: " + email, 404));
+    }
+
+    @Transactional(readOnly = true)
+    public Long resolverAlumnoIdPorEmail(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado: " + email, 404));
+
+        if (usuario.getAlumno() != null) {
+            return usuario.getAlumno().getIdAlumno();
+        }
+
+        return alumnoRepository.findByUsuarioId(usuario.getId())
+                .map(Alumno::getIdAlumno)
+                .orElseThrow(() -> new BusinessException("El usuario no tiene una ficha de alumno asociada.", 404));
+    }
 }
