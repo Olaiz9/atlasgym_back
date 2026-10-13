@@ -73,6 +73,10 @@ public class PagoService {
         pago.setComprobante(dto.comprobante());
 
         Pago guardado = pagoRepository.saveAndFlush(pago);
+        if (dto.usuarioApp() != null && !dto.usuarioApp().isBlank()
+                && dto.passwordApp() != null && !dto.passwordApp().isBlank()) {
+            alumnoService.asignarCredenciales(alumno.getIdAlumno(), dto.usuarioApp(), dto.passwordApp());
+        }
         sincronizarAsistenciaHoy(alumno);
         return mapToDto(guardado);
     }

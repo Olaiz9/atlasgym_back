@@ -108,22 +108,6 @@ public class AlumnoService {
         alumno.setFechaAlta(LocalDate.now());
         alumno.setActivo(dto.activo() != null ? dto.activo() : true);
 
-        // Si el alumno tiene email, crear o vincular su cuenta Usuario (Rol.ALUMNO, password inicial "alumno123")
-        if (dto.email() != null && !dto.email().isBlank()) {
-            String emailNormalizado = dto.email().trim();
-            Usuario usuario = usuarioRepository.findByEmail(emailNormalizado).orElseGet(() -> {
-                Usuario nuevoUsuario = new Usuario();
-                nuevoUsuario.setEmail(emailNormalizado);
-                nuevoUsuario.setPassword(passwordEncoder.encode("alumno123"));
-                nuevoUsuario.setRol(Rol.ALUMNO);
-                nuevoUsuario.setActivo(alumno.isActivo());
-                nuevoUsuario.setFechaCreacion(LocalDate.now());
-                nuevoUsuario.setCelular(dto.celular());
-                return usuarioRepository.save(nuevoUsuario);
-            });
-            alumno.setUsuario(usuario);
-        }
-
         if (dto.planId() != null) {
             Plan plan = planRepository.findById(dto.planId())
                     .orElseThrow(() -> new ResourceNotFoundException("Plan", dto.planId()));
@@ -163,23 +147,8 @@ public class AlumnoService {
         }
 
         if (alumno.getUsuario() != null) {
-            if (dto.email() != null && !dto.email().isBlank()) {
-                alumno.getUsuario().setEmail(dto.email().trim());
-            }
             alumno.getUsuario().setCelular(dto.celular());
             alumno.getUsuario().setActivo(alumno.isActivo());
-        } else if (dto.email() != null && !dto.email().isBlank()) {
-            String emailNormalizado = dto.email().trim();
-            if (!usuarioRepository.existsByEmail(emailNormalizado)) {
-                Usuario nuevoUsuario = new Usuario();
-                nuevoUsuario.setEmail(emailNormalizado);
-                nuevoUsuario.setPassword(passwordEncoder.encode("alumno123"));
-                nuevoUsuario.setRol(Rol.ALUMNO);
-                nuevoUsuario.setActivo(alumno.isActivo());
-                nuevoUsuario.setFechaCreacion(LocalDate.now());
-                nuevoUsuario.setCelular(dto.celular());
-                alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
-            }
         }
 
         if (dto.planId() != null) {
@@ -200,6 +169,61 @@ public class AlumnoService {
 
         Alumno actualizado = alumnoRepository.save(alumno);
         return mapToDto(actualizado);
+    }
+
+    @Transactional
+    public AlumnoResponseDto asignarCredenciales(Long id, String usuarioInput, String passwordInput) {
+        if (usuarioInput == null || usuarioInput.isBlank()) {
+            throw new BusinessException("El nombre de usuario no puede estar vacío.", 400);
+        }
+        if (passwordInput == null || passwordInput.isBlank()) {
+            throw new BusinessException("La contraseña no puede estar vacía.", 400);
+        }
+
+        Alumno alumno = alumnoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
+
+        String usuarioLimpio = usuarioInput.trim();
+        String passwordHash = passwordEncoder.encode(passwordInput.trim());
+
+        var existenteOpt = usuarioRepository.findByEmailIgnoreCase(usuarioLimpio);
+
+        if (alumno.getUsuario() != null) {
+            Usuario actual = alumno.getUsuario();
+            if (existenteOpt.isPresent() && !existenteOpt.get().getId().equals(actual.getId())) {
+                throw new BusinessException("El usuario '" + usuarioLimpio + "' ya está asignado a otra cuenta.", 409);
+            }
+            actual.setEmail(usuarioLimpio);
+            actual.setPassword(passwordHash);
+            actual.setActivo(alumno.isActivo());
+            actual.setCelular(alumno.getCelular());
+            usuarioRepository.save(actual);
+        } else {
+            if (existenteOpt.isPresent()) {
+                Usuario existente = existenteOpt.get();
+                var otroAlumno = alumnoRepository.findByUsuarioId(existente.getId());
+                if (otroAlumno.isPresent() && !otroAlumno.get().getIdAlumno().equals(alumno.getIdAlumno())) {
+                    throw new BusinessException("El usuario '" + usuarioLimpio + "' ya está asignado a otro socio.", 409);
+                }
+                existente.setPassword(passwordHash);
+                existente.setRol(Rol.ALUMNO);
+                existente.setActivo(alumno.isActivo());
+                existente.setCelular(alumno.getCelular());
+                alumno.setUsuario(usuarioRepository.save(existente));
+            } else {
+                Usuario nuevoUsuario = new Usuario();
+                nuevoUsuario.setEmail(usuarioLimpio);
+                nuevoUsuario.setPassword(passwordHash);
+                nuevoUsuario.setRol(Rol.ALUMNO);
+                nuevoUsuario.setActivo(alumno.isActivo());
+                nuevoUsuario.setFechaCreacion(LocalDate.now());
+                nuevoUsuario.setCelular(alumno.getCelular());
+                alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
+            }
+        }
+
+        Alumno guardado = alumnoRepository.save(alumno);
+        return mapToDto(guardado);
     }
 
     @Transactional

@@ -20,6 +20,10 @@ public record PagoRequestDto(
         @NotBlank(message = "El período del mes es obligatorio (ej: 2026-10)")
         String periodoMes,
 
-        String comprobante
+        String comprobante,
+
+        String usuarioApp,
+
+        String passwordApp
 ) {
 }

@@ -90,4 +90,16 @@ public class AlumnoController {
         alumnoService.darDeBaja(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/credenciales")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AlumnoResponseDto> asignarCredenciales(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body
+    ) {
+        String usuario = body.get("usuario");
+        String password = body.get("password");
+        AlumnoResponseDto actualizado = alumnoService.asignarCredenciales(id, usuario, password);
+        return ResponseEntity.ok(actualizado);
+    }
 }

@@ -14,6 +14,8 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
 
     Optional<Alumno> findByDni(String dni);
 
+    Optional<Alumno> findByEmailIgnoreCase(String email);
+
     List<Alumno> findByActivoTrue();
 
     List<Alumno> findByActivoFalse();

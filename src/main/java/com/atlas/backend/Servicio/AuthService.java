@@ -32,7 +32,8 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        Usuario usuario = usuarioRepository.findByEmail(request.email())
+        String identificador = request.email() != null ? request.email().trim() : "";
+        Usuario usuario = resolverUsuarioPorIdentificador(identificador)
                 .orElseThrow(() -> new BusinessException("Credenciales inválidas", 401));
 
         if (!passwordEncoder.matches(request.password(), usuario.getPassword())) {
@@ -74,7 +75,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse obtenerPerfil(String email) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = resolverUsuarioPorIdentificador(email)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado con email: " + email, 404));
 
         Long alumnoId = null;
@@ -107,14 +108,14 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public Long resolverUsuarioIdPorEmail(String email) {
-        return usuarioRepository.findByEmail(email)
+        return resolverUsuarioPorIdentificador(email)
                 .map(Usuario::getId)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado: " + email, 404));
     }
 
     @Transactional(readOnly = true)
     public Long resolverAlumnoIdPorEmail(String email) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = resolverUsuarioPorIdentificador(email)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado: " + email, 404));
 
         if (usuario.getAlumno() != null) {
@@ -124,5 +125,23 @@ public class AuthService {
         return alumnoRepository.findByUsuarioId(usuario.getId())
                 .map(Alumno::getIdAlumno)
                 .orElseThrow(() -> new BusinessException("El usuario no tiene una ficha de alumno asociada.", 404));
+    }
+
+    private java.util.Optional<Usuario> resolverUsuarioPorIdentificador(String identificador) {
+        if (identificador == null || identificador.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String limpio = identificador.trim();
+        var porUsuario = usuarioRepository.findByEmailIgnoreCase(limpio);
+        if (porUsuario.isPresent()) {
+            return porUsuario;
+        }
+        var porEmailAlumno = alumnoRepository.findByEmailIgnoreCase(limpio)
+                .map(Alumno::getUsuario);
+        if (porEmailAlumno.isPresent()) {
+            return porEmailAlumno;
+        }
+        return alumnoRepository.findByDni(limpio)
+                .map(Alumno::getUsuario);
     }
 }
