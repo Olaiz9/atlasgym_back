@@ -10,6 +10,8 @@ public record AsistenciaResponseDto(
         Long id,
         Long alumnoId,
         String nombreAlumno,
+        String alumnoDni,
+        String planNombre,
         LocalDate fecha,
         LocalTime hora,
         MetodoAsistencia metodo,

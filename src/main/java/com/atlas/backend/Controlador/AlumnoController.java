@@ -21,7 +21,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/alumnos")
-@PreAuthorize("hasRole('ADMIN')")
 public class AlumnoController {
 
     private final AlumnoService alumnoService;
@@ -31,21 +30,30 @@ public class AlumnoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AlumnoResponseDto>> listarActivos() {
-        return ResponseEntity.ok(alumnoService.listarActivos());
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
+    public ResponseEntity<List<AlumnoResponseDto>> listar(
+            @RequestParam(required = false) Boolean soloActivos
+    ) {
+        if (Boolean.TRUE.equals(soloActivos)) {
+            return ResponseEntity.ok(alumnoService.listarActivos());
+        }
+        return ResponseEntity.ok(alumnoService.listarTodos());
     }
 
     @GetMapping("/inactivos")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AlumnoResponseDto>> listarInactivos() {
         return ResponseEntity.ok(alumnoService.listarInactivos());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
     public ResponseEntity<AlumnoResponseDto> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(alumnoService.buscarPorId(id));
     }
 
     @GetMapping("/buscar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> buscar(
             @RequestParam(required = false) String dni,
             @RequestParam(required = false) String nombre
@@ -56,16 +64,18 @@ public class AlumnoController {
         if (nombre != null && !nombre.isBlank()) {
             return ResponseEntity.ok(alumnoService.buscarPorNombre(nombre.trim()));
         }
-        return ResponseEntity.ok(alumnoService.listarActivos());
+        return ResponseEntity.ok(alumnoService.listarTodos());
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AlumnoResponseDto> crear(@Valid @RequestBody AlumnoRequestDto dto) {
         AlumnoResponseDto creado = alumnoService.crear(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AlumnoResponseDto> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody AlumnoRequestDto dto
@@ -75,6 +85,7 @@ public class AlumnoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> darDeBaja(@PathVariable Long id) {
         alumnoService.darDeBaja(id);
         return ResponseEntity.noContent().build();

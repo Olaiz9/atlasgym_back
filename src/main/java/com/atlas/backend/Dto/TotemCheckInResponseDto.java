@@ -8,7 +8,11 @@ public record TotemCheckInResponseDto(
         boolean ok,
         boolean yaRegistrado,
         String motivo,
+        Long asistenciaId,
+        Long alumnoId,
         String nombreAlumno,
+        String alumnoDni,
+        String planNombre,
         EstadoCuenta estadoCuenta,
         LocalTime horaIngreso
 ) {

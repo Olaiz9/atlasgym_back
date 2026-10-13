@@ -8,11 +8,15 @@ import com.atlas.backend.Modelo.Alumno;
 import com.atlas.backend.Modelo.EstadoCuenta;
 import com.atlas.backend.Modelo.Pago;
 import com.atlas.backend.Modelo.Plan;
+import com.atlas.backend.Modelo.Rol;
 import com.atlas.backend.Modelo.Rutina;
+import com.atlas.backend.Modelo.Usuario;
 import com.atlas.backend.Repositorio.AlumnoRepository;
 import com.atlas.backend.Repositorio.PagoRepository;
 import com.atlas.backend.Repositorio.PlanRepository;
 import com.atlas.backend.Repositorio.RutinaRepository;
+import com.atlas.backend.Repositorio.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +31,28 @@ public class AlumnoService {
     private final PlanRepository planRepository;
     private final RutinaRepository rutinaRepository;
     private final PagoRepository pagoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public AlumnoService(AlumnoRepository alumnoRepository,
                          PlanRepository planRepository,
                          RutinaRepository rutinaRepository,
-                         PagoRepository pagoRepository) {
+                         PagoRepository pagoRepository,
+                         UsuarioRepository usuarioRepository,
+                         PasswordEncoder passwordEncoder) {
         this.alumnoRepository = alumnoRepository;
         this.planRepository = planRepository;
         this.rutinaRepository = rutinaRepository;
         this.pagoRepository = pagoRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional(readOnly = true)
+    public List<AlumnoResponseDto> listarTodos() {
+        return alumnoRepository.findAll().stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -91,6 +108,22 @@ public class AlumnoService {
         alumno.setFechaAlta(LocalDate.now());
         alumno.setActivo(dto.activo() != null ? dto.activo() : true);
 
+        // Si el alumno tiene email, crear o vincular su cuenta Usuario (Rol.ALUMNO, password inicial "alumno123")
+        if (dto.email() != null && !dto.email().isBlank()) {
+            String emailNormalizado = dto.email().trim();
+            Usuario usuario = usuarioRepository.findByEmail(emailNormalizado).orElseGet(() -> {
+                Usuario nuevoUsuario = new Usuario();
+                nuevoUsuario.setEmail(emailNormalizado);
+                nuevoUsuario.setPassword(passwordEncoder.encode("alumno123"));
+                nuevoUsuario.setRol(Rol.ALUMNO);
+                nuevoUsuario.setActivo(alumno.isActivo());
+                nuevoUsuario.setFechaCreacion(LocalDate.now());
+                nuevoUsuario.setCelular(dto.celular());
+                return usuarioRepository.save(nuevoUsuario);
+            });
+            alumno.setUsuario(usuario);
+        }
+
         if (dto.planId() != null) {
             Plan plan = planRepository.findById(dto.planId())
                     .orElseThrow(() -> new ResourceNotFoundException("Plan", dto.planId()));
@@ -129,6 +162,26 @@ public class AlumnoService {
             alumno.setActivo(dto.activo());
         }
 
+        if (alumno.getUsuario() != null) {
+            if (dto.email() != null && !dto.email().isBlank()) {
+                alumno.getUsuario().setEmail(dto.email().trim());
+            }
+            alumno.getUsuario().setCelular(dto.celular());
+            alumno.getUsuario().setActivo(alumno.isActivo());
+        } else if (dto.email() != null && !dto.email().isBlank()) {
+            String emailNormalizado = dto.email().trim();
+            if (!usuarioRepository.existsByEmail(emailNormalizado)) {
+                Usuario nuevoUsuario = new Usuario();
+                nuevoUsuario.setEmail(emailNormalizado);
+                nuevoUsuario.setPassword(passwordEncoder.encode("alumno123"));
+                nuevoUsuario.setRol(Rol.ALUMNO);
+                nuevoUsuario.setActivo(alumno.isActivo());
+                nuevoUsuario.setFechaCreacion(LocalDate.now());
+                nuevoUsuario.setCelular(dto.celular());
+                alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
+            }
+        }
+
         if (dto.planId() != null) {
             Plan plan = planRepository.findById(dto.planId())
                     .orElseThrow(() -> new ResourceNotFoundException("Plan", dto.planId()));
@@ -154,6 +207,9 @@ public class AlumnoService {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
         alumno.darDeBaja();
+        if (alumno.getUsuario() != null) {
+            alumno.getUsuario().setActivo(false);
+        }
         alumnoRepository.save(alumno);
     }
 
@@ -172,16 +228,24 @@ public class AlumnoService {
         }
 
         String periodoActual = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        boolean pagoMesActual = pagoRepository.existsByAlumnoIdAndPeriodoMes(alumno.getIdAlumno(), periodoActual);
-
-        if (pagoMesActual) {
-            return EstadoCuenta.AL_DIA;
-        }
-
         List<Pago> historial = pagoRepository.findByAlumnoIdOrderByFechaDesc(alumno.getIdAlumno());
+
         if (!historial.isEmpty()) {
             Pago ultimoPago = historial.get(0);
-            if (ultimoPago.getFecha().isBefore(LocalDate.now().minusDays(60))) {
+            if (ultimoPago.getEstadoPago() == com.atlas.backend.Modelo.EstadoPago.PENDIENTE) {
+                return EstadoCuenta.PENDIENTE;
+            }
+            if (ultimoPago.getEstadoPago() == com.atlas.backend.Modelo.EstadoPago.VENCIDO) {
+                return EstadoCuenta.MOROSO;
+            }
+            if (ultimoPago.getEstadoPago() == com.atlas.backend.Modelo.EstadoPago.PAGADO) {
+                boolean esPeriodoActual = periodoActual.equals(ultimoPago.getPeriodoMes());
+                boolean dentroDe30Dias = ultimoPago.getFecha() != null && !ultimoPago.getFecha().isBefore(LocalDate.now().minusDays(31));
+                if (esPeriodoActual || dentroDe30Dias) {
+                    return EstadoCuenta.AL_DIA;
+                }
+            }
+            if (ultimoPago.getFecha() != null && ultimoPago.getFecha().isBefore(LocalDate.now().minusDays(60))) {
                 return EstadoCuenta.INACTIVO;
             }
         } else if (alumno.getFechaAlta() != null && alumno.getFechaAlta().isBefore(LocalDate.now().minusDays(60))) {
@@ -213,6 +277,7 @@ public class AlumnoService {
                 planId,
                 planNombre,
                 alumno.getFechaAlta(),
+                alumno.getUltimaAsistencia(),
                 alumno.isActivo(),
                 estadoCuenta,
                 rutinaId,

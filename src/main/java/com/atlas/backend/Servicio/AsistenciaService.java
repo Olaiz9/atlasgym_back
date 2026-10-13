@@ -51,18 +51,27 @@ public class AsistenciaService {
                     "DNI no encontrado en el sistema.",
                     null,
                     null,
+                    null,
+                    dni,
+                    null,
+                    null,
                     null
             );
         }
 
         Alumno alumno = alumnoOpt.get();
+        String planNombre = alumno.getPlanAlumno() != null ? alumno.getPlanAlumno().getNombre() : "Pase Libre";
 
         if (!alumno.isActivo()) {
             return new TotemCheckInResponseDto(
                     false,
                     false,
                     "Socio inactivo en el sistema.",
+                    null,
+                    alumno.getIdAlumno(),
                     alumno.getNombre(),
+                    alumno.getDni(),
+                    planNombre,
                     EstadoCuenta.INACTIVO,
                     null
             );
@@ -83,7 +92,11 @@ public class AsistenciaService {
                             false,
                             true,
                             "Tu sesión continúa activa.",
+                            ultima.getId(),
+                            alumno.getIdAlumno(),
                             alumno.getNombre(),
+                            alumno.getDni(),
+                            planNombre,
                             ultima.getEstadoCuenta(),
                             ultima.getHora()
                     );
@@ -100,7 +113,7 @@ public class AsistenciaService {
                 MetodoAsistencia.DNI_TOTEM,
                 estadoCuentaSnapshot
         );
-        asistenciaRepository.save(nuevaAsistencia);
+        Asistencia guardada = asistenciaRepository.save(nuevaAsistencia);
 
         alumno.setUltimaAsistencia(hoy);
         alumnoRepository.save(alumno);
@@ -109,7 +122,11 @@ public class AsistenciaService {
                 true,
                 false,
                 "Ingreso registrado correctamente.",
+                guardada.getId(),
+                alumno.getIdAlumno(),
                 alumno.getNombre(),
+                alumno.getDni(),
+                planNombre,
                 estadoCuentaSnapshot,
                 ahora
         );
@@ -141,6 +158,13 @@ public class AsistenciaService {
     }
 
     @Transactional(readOnly = true)
+    public List<AsistenciaResponseDto> listarTodas() {
+        return asistenciaRepository.findAllOrderByFechaDescHoraDesc().stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<AsistenciaResponseDto> historialPorFecha(LocalDate fecha) {
         return asistenciaRepository.findByFechaOrderByHoraAsc(fecha).stream()
                 .map(this::mapToDto)
@@ -164,11 +188,24 @@ public class AsistenciaService {
                 ));
     }
 
+    @Transactional
+    public void eliminar(Long id) {
+        asistenciaRepository.deleteById(id);
+    }
+
     private AsistenciaResponseDto mapToDto(Asistencia a) {
+        Alumno al = a.getAlumno();
+        String dni = al != null ? al.getDni() : null;
+        String planNombre = (al != null && al.getPlanAlumno() != null)
+                ? al.getPlanAlumno().getNombre()
+                : "Pase Libre";
+
         return new AsistenciaResponseDto(
                 a.getId(),
-                a.getAlumno().getIdAlumno(),
-                a.getAlumno().getNombre(),
+                al != null ? al.getIdAlumno() : null,
+                al != null ? al.getNombre() : "Socio",
+                dni,
+                planNombre,
                 a.getFecha(),
                 a.getHora(),
                 a.getMetodo(),

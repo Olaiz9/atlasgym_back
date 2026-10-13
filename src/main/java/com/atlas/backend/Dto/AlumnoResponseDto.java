@@ -13,6 +13,7 @@ public record AlumnoResponseDto(
         Long planId,
         String planNombre,
         LocalDate fechaAlta,
+        LocalDate ultimaAsistencia,
         Boolean activo,
         EstadoCuenta estadoCuenta,
         Long rutinaId,

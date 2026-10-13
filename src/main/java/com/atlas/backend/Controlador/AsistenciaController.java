@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +37,7 @@ public class AsistenciaController {
         TotemCheckInResponseDto respuesta = asistenciaService.checkInPorDni(dto.dni());
         return ResponseEntity.ok(respuesta);
     }
+
     @GetMapping("/aforo")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AforoResponseDto> obtenerAforo() {
@@ -44,13 +46,14 @@ public class AsistenciaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
     public ResponseEntity<List<AsistenciaResponseDto>> listarPorFecha(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
     ) {
-        LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
-        List<AsistenciaResponseDto> asistencias = asistenciaService.historialPorFecha(fechaConsulta);
-        return ResponseEntity.ok(asistencias);
+        if (fecha != null) {
+            return ResponseEntity.ok(asistenciaService.historialPorFecha(fecha));
+        }
+        return ResponseEntity.ok(asistenciaService.listarTodas());
     }
 
     @GetMapping("/alumno/{id}")
@@ -68,5 +71,12 @@ public class AsistenciaController {
         LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
         Map<Integer, Long> distribucion = asistenciaService.distribucionPorHora(fechaConsulta);
         return ResponseEntity.ok(distribucion);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        asistenciaService.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 }
