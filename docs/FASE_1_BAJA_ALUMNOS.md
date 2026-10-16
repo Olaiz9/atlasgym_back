@@ -1,5 +1,7 @@
 # Primera correccion: baja de alumnos sin perder historial
 
+> Documento de la primera entrega. Posteriormente se integro ramaLucas, que agrega servicios y controladores. El estado de ejecucion y los pendientes descritos abajo corresponden a aquella entrega; consultar tambien SEGURIDAD_FICHA_ALUMNO.md para la correccion posterior.
+
 ## Regla acordada
 
 Si un alumno paga junio y se da de baja en julio, el pago sigue en Finanzas de junio. La baja administrativa conserva la ficha y establece `activo=false`.
