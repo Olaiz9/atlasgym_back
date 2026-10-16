@@ -18,4 +18,6 @@ Esta correccion se limita a la consulta individual de alumnos. No certifica la a
 
 ## Validacion pendiente (2026-10-16)
 
+Actualizacion: el usuario ejecuto posteriormente la suite en IntelliJ y compartio BUILD SUCCESS con 10 pruebas, sin fallos ni errores, usando Java 23.0.2. El bloqueo descrito a continuacion corresponde al entorno del asistente.
+
 Se reviso el diff y se intento ejecutar la suite con Java 17. El entorno rechazo acceso a archivos JAR (`java.nio.file.AccessDeniedException` en `WindowsPath.toRealPath`, al cerrar recursos del compilador), incluso usando una cache Maven nueva. La compilacion de pruebas no finalizo y no se ejecutaron los tests. No se declara BUILD SUCCESS. Ejecutar `./mvnw.cmd test` desde IntelliJ antes de integrar esta rama a una rama compartida.

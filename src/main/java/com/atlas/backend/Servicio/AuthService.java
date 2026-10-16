@@ -44,19 +44,18 @@ public class AuthService {
             throw new BusinessException("La cuenta de usuario se encuentra inactiva", 403);
         }
 
+        Alumno alumnoVinculado = usuario.getAlumno() != null ? usuario.getAlumno()
+                : alumnoRepository.findByUsuarioId(usuario.getId()).orElse(null);
+        if (alumnoVinculado != null && !alumnoVinculado.isActivo()) {
+            throw new BusinessException("La cuenta de usuario se encuentra inactiva", 403);
+        }
+
         Long alumnoId = null;
         String nombreMostrar = usuario.getEmail();
 
-        if (usuario.getAlumno() != null) {
-            alumnoId = usuario.getAlumno().getIdAlumno();
-            nombreMostrar = usuario.getAlumno().getNombre();
-        } else {
-            var alumnoOpt = alumnoRepository.findByUsuarioId(usuario.getId());
-            if (alumnoOpt.isPresent()) {
-                Alumno a = alumnoOpt.get();
-                alumnoId = a.getIdAlumno();
-                nombreMostrar = a.getNombre();
-            }
+        if (alumnoVinculado != null) {
+            alumnoId = alumnoVinculado.getIdAlumno();
+            nombreMostrar = alumnoVinculado.getNombre();
         }
 
         String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
