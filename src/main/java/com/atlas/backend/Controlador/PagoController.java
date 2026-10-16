@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,7 +64,16 @@ public class PagoController {
 
     @GetMapping("/alumno/{alumnoId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
-    public ResponseEntity<List<PagoResponseDto>> listarPorAlumno(@PathVariable Long alumnoId) {
+    public ResponseEntity<List<PagoResponseDto>> listarPorAlumno(
+            @PathVariable Long alumnoId, Authentication authentication) {
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!esAdmin) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            if (!alumnoId.equals(miAlumnoId)) {
+                throw new AccessDeniedException("Solo puede consultar sus propios pagos.");
+            }
+        }
         return ResponseEntity.ok(pagoService.listarPorAlumno(alumnoId));
     }
 
