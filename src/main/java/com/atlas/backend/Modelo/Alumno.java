@@ -17,11 +17,14 @@ public class Alumno {
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(name = "apellido", nullable = false, length = 100)
+    @Column(name = "apellido", length = 100)
     private String apellido;
 
     @Column(name = "dni", length = 20, unique = true)
     private String dni;
+
+    @Column(name = "email", length = 100)
+    private String email;
 
     @Column(name = "celular", length = 30)
     private String celular;
@@ -33,7 +36,7 @@ public class Alumno {
     private LocalDate fechaAlta;
 
     @Column(name = "activo", nullable = false)
-    private boolean activo;
+    private boolean activo = true;
 
     @Column(name = "ultima_asistencia")
     private LocalDate ultimaAsistencia;
@@ -82,11 +85,12 @@ public class Alumno {
         this.pagosAlumnos = pagosAlumnos != null ? pagosAlumnos : new ArrayList<>();
     }
 
-    public Alumno(Long idAlumno, String nombre, String apellido, String dni, String celular, LocalDate fechaNacimiento, LocalDate fechaAlta, boolean activo, LocalDate ultimaAsistencia, String fotoUrl, Usuario usuario, Plan planAlumno, Rutina rutinaAlumno, List<Asistencia> asistencias, List<Pago> pagosAlumnos, List<SesionEntrenamiento> sesionesEntrenamiento) {
+    public Alumno(Long idAlumno, String nombre, String apellido, String dni, String email, String celular, LocalDate fechaNacimiento, LocalDate fechaAlta, boolean activo, LocalDate ultimaAsistencia, String fotoUrl, Usuario usuario, Plan planAlumno, Rutina rutinaAlumno, List<Asistencia> asistencias, List<Pago> pagosAlumnos, List<SesionEntrenamiento> sesionesEntrenamiento) {
         this.idAlumno = idAlumno;
         this.nombre = nombre;
         this.apellido = apellido;
         this.dni = dni;
+        this.email = email;
         this.celular = celular;
         this.fechaNacimiento = fechaNacimiento;
         this.fechaAlta = fechaAlta;
@@ -133,6 +137,14 @@ public class Alumno {
         this.dni = dni;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public String getCelular() {
         return celular;
     }
@@ -174,7 +186,7 @@ public class Alumno {
     @PreRemove
     private void impedirBorradoFisico() {
         throw new IllegalStateException(
-                "El alumno conserva su historial. Use darDeBaja() en lugar de eliminarlo.");
+                "El alumno conserva su historial contable y deportivo. Use darDeBaja() en lugar de eliminarlo.");
     }
 
     public LocalDate getUltimaAsistencia() {

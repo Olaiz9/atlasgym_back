@@ -1,0 +1,95 @@
+package com.atlas.backend.Controlador;
+
+import com.atlas.backend.Dto.AforoResponseDto;
+import com.atlas.backend.Dto.AsistenciaResponseDto;
+import com.atlas.backend.Dto.TotemCheckInRequestDto;
+import com.atlas.backend.Dto.TotemCheckInResponseDto;
+import com.atlas.backend.Servicio.AsistenciaService;
+import com.atlas.backend.Servicio.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/asistencias")
+public class AsistenciaController {
+
+    private final AsistenciaService asistenciaService;
+    private final AuthService authService;
+
+    public AsistenciaController(AsistenciaService asistenciaService, AuthService authService) {
+        this.asistenciaService = asistenciaService;
+        this.authService = authService;
+    }
+
+    @PostMapping("/totem")
+    public ResponseEntity<TotemCheckInResponseDto> checkInTotem(@Valid @RequestBody TotemCheckInRequestDto dto) {
+        TotemCheckInResponseDto respuesta = asistenciaService.checkInPorDni(dto.dni());
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/aforo")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AforoResponseDto> obtenerAforo() {
+        AforoResponseDto aforo = asistenciaService.calcularAforoActual();
+        return ResponseEntity.ok(aforo);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
+    public ResponseEntity<List<AsistenciaResponseDto>> listarPorFecha(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            Authentication authentication
+    ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            return ResponseEntity.ok(asistenciaService.historialPorAlumno(miAlumnoId));
+        }
+
+        if (fecha != null) {
+            return ResponseEntity.ok(asistenciaService.historialPorFecha(fecha));
+        }
+        return ResponseEntity.ok(asistenciaService.listarTodas());
+    }
+
+    @GetMapping("/alumno/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
+    public ResponseEntity<List<AsistenciaResponseDto>> historialPorAlumno(@PathVariable Long id) {
+        List<AsistenciaResponseDto> asistencias = asistenciaService.historialPorAlumno(id);
+        return ResponseEntity.ok(asistencias);
+    }
+
+    @GetMapping("/distribucion")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<Integer, Long>> distribucionPorHora(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
+    ) {
+        LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
+        Map<Integer, Long> distribucion = asistenciaService.distribucionPorHora(fechaConsulta);
+        return ResponseEntity.ok(distribucion);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        asistenciaService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
