@@ -47,9 +47,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Rutas públicas de autenticación y kiosk Tótem
+                        // Rutas públicas de autenticación, catálogos públicos y kiosk Tótem
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/asistencias/totem").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/planes", "/api/planes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/videoteca", "/api/videoteca/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Cualquier otra ruta requiere autenticación

@@ -2,11 +2,13 @@ package com.atlas.backend.Controlador;
 
 import com.atlas.backend.Dto.PagoRequestDto;
 import com.atlas.backend.Dto.PagoResponseDto;
+import com.atlas.backend.Servicio.AuthService;
 import com.atlas.backend.Servicio.PagoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,9 +27,11 @@ import java.util.Map;
 public class PagoController {
 
     private final PagoService pagoService;
+    private final AuthService authService;
 
-    public PagoController(PagoService pagoService) {
+    public PagoController(PagoService pagoService, AuthService authService) {
         this.pagoService = pagoService;
+        this.authService = authService;
     }
 
     @PostMapping
@@ -39,7 +43,18 @@ public class PagoController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
-    public ResponseEntity<List<PagoResponseDto>> listarPagos(@RequestParam(required = false) String mes) {
+    public ResponseEntity<List<PagoResponseDto>> listarPagos(
+            @RequestParam(required = false) String mes,
+            Authentication authentication
+    ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            return ResponseEntity.ok(pagoService.listarPorAlumno(miAlumnoId));
+        }
+
         if (mes != null && !mes.isBlank()) {
             return ResponseEntity.ok(pagoService.listarPorMes(mes.trim()));
         }

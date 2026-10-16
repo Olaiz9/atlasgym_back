@@ -8,6 +8,7 @@ public record AlumnoResponseDto(
         Long id,
         String nombre,
         String dni,
+        String usuario,
         String email,
         String celular,
         Long planId,

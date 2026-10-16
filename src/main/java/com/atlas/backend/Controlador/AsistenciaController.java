@@ -5,10 +5,12 @@ import com.atlas.backend.Dto.AsistenciaResponseDto;
 import com.atlas.backend.Dto.TotemCheckInRequestDto;
 import com.atlas.backend.Dto.TotemCheckInResponseDto;
 import com.atlas.backend.Servicio.AsistenciaService;
+import com.atlas.backend.Servicio.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,9 +29,11 @@ import java.util.Map;
 public class AsistenciaController {
 
     private final AsistenciaService asistenciaService;
+    private final AuthService authService;
 
-    public AsistenciaController(AsistenciaService asistenciaService) {
+    public AsistenciaController(AsistenciaService asistenciaService, AuthService authService) {
         this.asistenciaService = asistenciaService;
+        this.authService = authService;
     }
 
     @PostMapping("/totem")
@@ -48,8 +52,17 @@ public class AsistenciaController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
     public ResponseEntity<List<AsistenciaResponseDto>> listarPorFecha(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            Authentication authentication
     ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            return ResponseEntity.ok(asistenciaService.historialPorAlumno(miAlumnoId));
+        }
+
         if (fecha != null) {
             return ResponseEntity.ok(asistenciaService.historialPorFecha(fecha));
         }

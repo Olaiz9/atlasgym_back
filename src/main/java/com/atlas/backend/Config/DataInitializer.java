@@ -290,14 +290,65 @@ public class DataInitializer implements CommandLineRunner {
             log.info("DataInitializer: Creado aviso institucional de bienvenida.");
         }
 
+        // Asegurar que cualquier socio ya inscripto en la base de datos tenga su Nombre de Usuario generado
+        asegurarUsernamesDeInscriptos();
+
         log.info("DataInitializer: Verificación de datos semilla completada exitosamente.");
     }
 
+    private void asegurarUsernamesDeInscriptos() {
+        List<Alumno> todos = alumnoRepository.findAll();
+        for (Alumno al : todos) {
+            String usernameEsperado = generarUsernameBase(al.getNombre(), al.getDni());
+            if (al.getUsuario() == null) {
+                String dniNumeros = al.getDni() != null ? al.getDni().replaceAll("\\D", "") : "";
+                String passInicial = dniNumeros.isEmpty() ? "alumno123" : dniNumeros;
+
+                Usuario u = usuarioRepository.findByEmailIgnoreCase(usernameEsperado).orElseGet(() -> {
+                    Usuario nuevo = new Usuario();
+                    nuevo.setEmail(usernameEsperado);
+                    nuevo.setPassword(passwordEncoder.encode(passInicial));
+                    nuevo.setRol(Rol.ALUMNO);
+                    nuevo.setActivo(al.isActivo());
+                    nuevo.setFechaCreacion(LocalDate.now());
+                    nuevo.setCelular(al.getCelular());
+                    return usuarioRepository.save(nuevo);
+                });
+                al.setUsuario(u);
+                alumnoRepository.save(al);
+            } else if (al.getUsuario().getEmail() != null && al.getUsuario().getEmail().contains("@")) {
+                var ocupado = usuarioRepository.findByEmailIgnoreCase(usernameEsperado);
+                if (ocupado.isEmpty() || ocupado.get().getId().equals(al.getUsuario().getId())) {
+                    al.getUsuario().setEmail(usernameEsperado);
+                    usuarioRepository.save(al.getUsuario());
+                }
+            }
+        }
+    }
+
+    private String generarUsernameBase(String nombreCompleto, String dni) {
+        String baseNombre = "socio";
+        if (nombreCompleto != null && !nombreCompleto.isBlank()) {
+            String normalizado = java.text.Normalizer.normalize(nombreCompleto.trim(), java.text.Normalizer.Form.NFD)
+                    .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+                    .toLowerCase();
+            String primerNombre = normalizado.split("\\s+")[0].replaceAll("[^a-z0-9]", "");
+            if (!primerNombre.isEmpty()) {
+                baseNombre = primerNombre;
+            }
+        }
+        String digitosDni = dni != null ? dni.replaceAll("\\D", "") : "";
+        String sufijo = digitosDni.length() >= 3
+                ? digitosDni.substring(digitosDni.length() - 3)
+                : digitosDni;
+        return baseNombre + sufijo;
+    }
+
     private Alumno asegurarAlumnoDemo(String nombreCompleto, String dni, String email, String celular, Plan plan, Rutina rutina, boolean activo) {
+        String username = generarUsernameBase(nombreCompleto, dni);
         var existente = alumnoRepository.findByDni(dni);
         if (existente.isPresent()) {
             Alumno al = existente.get();
-            // Asegurar que el nombre completo esté bien formateado
             if (!al.getNombre().equals(nombreCompleto)) {
                 al.setNombre(nombreCompleto);
                 return alumnoRepository.save(al);
@@ -305,16 +356,18 @@ public class DataInitializer implements CommandLineRunner {
             return al;
         }
 
-        Usuario usuario = usuarioRepository.findByEmail(email).orElseGet(() -> {
-            Usuario u = new Usuario();
-            u.setEmail(email);
-            u.setPassword(passwordEncoder.encode("alumno123"));
-            u.setRol(Rol.ALUMNO);
-            u.setActivo(activo);
-            u.setFechaCreacion(LocalDate.now());
-            u.setCelular(celular);
-            return usuarioRepository.save(u);
-        });
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(username)
+                .or(() -> usuarioRepository.findByEmailIgnoreCase(email))
+                .orElseGet(() -> {
+                    Usuario u = new Usuario();
+                    u.setEmail(username);
+                    u.setPassword(passwordEncoder.encode("alumno123"));
+                    u.setRol(Rol.ALUMNO);
+                    u.setActivo(activo);
+                    u.setFechaCreacion(LocalDate.now());
+                    u.setCelular(celular);
+                    return usuarioRepository.save(u);
+                });
 
         Alumno alumno = new Alumno();
         alumno.setNombre(nombreCompleto);

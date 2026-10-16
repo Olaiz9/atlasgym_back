@@ -2,6 +2,7 @@ package com.atlas.backend.Repositorio;
 
 import com.atlas.backend.Modelo.SesionEntrenamiento;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -23,4 +24,20 @@ public interface SesionEntrenamientoRepository extends JpaRepository<SesionEntre
 
     @Query("SELECT s FROM SesionEntrenamiento s WHERE s.alumno.idAlumno = :alumnoId AND s.fecha BETWEEN :desde AND :hasta ORDER BY s.fecha DESC")
     List<SesionEntrenamiento> findByAlumnoIdAndFechaBetween(@Param("alumnoId") Long alumnoId, @Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE SesionEntrenamiento s SET s.rutina = null, s.diaRutina = null WHERE s.rutina.id = :rutinaId")
+    void desvincularRutina(@Param("rutinaId") Long rutinaId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE SesionEntrenamiento s SET s.diaRutina = null WHERE s.diaRutina.id = :diaRutinaId")
+    void desvincularDiaRutina(@Param("diaRutinaId") Long diaRutinaId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE SesionEjercicio se SET se.ejercicio = null WHERE se.ejercicio.id = :ejercicioId")
+    void desvincularEjercicio(@Param("ejercicioId") Long ejercicioId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE SesionEjercicio se SET se.ejercicio = null WHERE se.ejercicio.diaRutina.id IN (SELECT d.id FROM DiaRutina d WHERE d.rutinaDia.id = :rutinaId)")
+    void desvincularEjerciciosDeRutina(@Param("rutinaId") Long rutinaId);
 }

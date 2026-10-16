@@ -120,6 +120,20 @@ public class AlumnoService {
             alumno.setRutinaAlumno(rutina);
         }
 
+        // Generar automáticamente el nombre de usuario y cuenta de acceso para el nuevo inscripto
+        String usernameGenerado = generarUsernameUnico(dto.nombre(), dto.dni(), null);
+        String dniSoloNumeros = dto.dni().replaceAll("\\D", "");
+        String passwordInicial = dniSoloNumeros.isEmpty() ? "alumno123" : dniSoloNumeros;
+
+        Usuario nuevoUsuario = new Usuario();
+        nuevoUsuario.setEmail(usernameGenerado);
+        nuevoUsuario.setPassword(passwordEncoder.encode(passwordInicial));
+        nuevoUsuario.setRol(Rol.ALUMNO);
+        nuevoUsuario.setActivo(alumno.isActivo());
+        nuevoUsuario.setFechaCreacion(LocalDate.now());
+        nuevoUsuario.setCelular(alumno.getCelular());
+        alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
+
         Alumno guardado = alumnoRepository.save(alumno);
         return mapToDto(guardado);
     }
@@ -283,6 +297,38 @@ public class AlumnoService {
         return EstadoCuenta.MOROSO;
     }
 
+    public String generarUsernameBase(String nombreCompleto, String dni) {
+        String baseNombre = "socio";
+        if (nombreCompleto != null && !nombreCompleto.isBlank()) {
+            String normalizado = java.text.Normalizer.normalize(nombreCompleto.trim(), java.text.Normalizer.Form.NFD)
+                    .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+                    .toLowerCase();
+            String primerNombre = normalizado.split("\\s+")[0].replaceAll("[^a-z0-9]", "");
+            if (!primerNombre.isEmpty()) {
+                baseNombre = primerNombre;
+            }
+        }
+        String digitosDni = dni != null ? dni.replaceAll("\\D", "") : "";
+        String sufijo = digitosDni.length() >= 3
+                ? digitosDni.substring(digitosDni.length() - 3)
+                : digitosDni;
+        return baseNombre + sufijo;
+    }
+
+    public String generarUsernameUnico(String nombreCompleto, String dni, Long usuarioIdActual) {
+        String base = generarUsernameBase(nombreCompleto, dni);
+        String candidato = base;
+        int contador = 1;
+        while (true) {
+            var existente = usuarioRepository.findByEmailIgnoreCase(candidato);
+            if (existente.isEmpty() || (usuarioIdActual != null && existente.get().getId().equals(usuarioIdActual))) {
+                return candidato;
+            }
+            candidato = base + contador;
+            contador++;
+        }
+    }
+
     public AlumnoResponseDto mapToDto(Alumno alumno) {
         Long planId = alumno.getPlanAlumno() != null ? alumno.getPlanAlumno().getIdPlan() : null;
         String planNombre = alumno.getPlanAlumno() != null ? alumno.getPlanAlumno().getNombre() : null;
@@ -290,12 +336,17 @@ public class AlumnoService {
         Long rutinaId = alumno.getRutinaAlumno() != null ? alumno.getRutinaAlumno().getId() : null;
         String rutinaNombre = alumno.getRutinaAlumno() != null ? alumno.getRutinaAlumno().getNombre() : null;
 
+        String username = alumno.getUsuario() != null && alumno.getUsuario().getEmail() != null
+                ? alumno.getUsuario().getEmail()
+                : generarUsernameBase(alumno.getNombre(), alumno.getDni());
+
         EstadoCuenta estadoCuenta = calcularEstadoCuenta(alumno);
 
         return new AlumnoResponseDto(
                 alumno.getIdAlumno(),
                 alumno.getNombre(),
                 alumno.getDni(),
+                username,
                 alumno.getEmail(),
                 alumno.getCelular(),
                 planId,

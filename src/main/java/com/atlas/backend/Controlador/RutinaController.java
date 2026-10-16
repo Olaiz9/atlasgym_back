@@ -52,13 +52,21 @@ public class RutinaController {
     @PreAuthorize("hasRole('ALUMNO')")
     public ResponseEntity<RutinaResponseDto> obtenerMiRutina(Authentication authentication) {
         Long alumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
-        return ResponseEntity.ok(rutinaService.obtenerRutinaDeAlumno(alumnoId));
+        RutinaResponseDto rutina = rutinaService.obtenerRutinaDeAlumno(alumnoId);
+        if (rutina == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(rutina);
     }
 
     @GetMapping("/alumno/{alumnoId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
     public ResponseEntity<RutinaResponseDto> obtenerRutinaDeAlumno(@PathVariable Long alumnoId) {
-        return ResponseEntity.ok(rutinaService.obtenerRutinaDeAlumno(alumnoId));
+        RutinaResponseDto rutina = rutinaService.obtenerRutinaDeAlumno(alumnoId);
+        if (rutina == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(rutina);
     }
 
     @PostMapping

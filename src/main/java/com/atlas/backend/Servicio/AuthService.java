@@ -132,16 +132,28 @@ public class AuthService {
             return java.util.Optional.empty();
         }
         String limpio = identificador.trim();
+
+        // 1. Buscar por nombre de usuario (o email del usuario en tabla usuarios)
         var porUsuario = usuarioRepository.findByEmailIgnoreCase(limpio);
         if (porUsuario.isPresent()) {
             return porUsuario;
         }
-        var porEmailAlumno = alumnoRepository.findByEmailIgnoreCase(limpio)
-                .map(Alumno::getUsuario);
-        if (porEmailAlumno.isPresent()) {
-            return porEmailAlumno;
+
+        // 2. Buscar por DNI exacto o normalizado (sin puntos ni espacios)
+        var porDniExacto = alumnoRepository.findByDni(limpio).map(Alumno::getUsuario);
+        if (porDniExacto.isPresent()) {
+            return porDniExacto;
         }
-        return alumnoRepository.findByDni(limpio)
+        String dniSoloNumeros = limpio.replaceAll("\\D", "");
+        if (!dniSoloNumeros.isEmpty() && dniSoloNumeros.length() >= 7) {
+            var porDniLimpio = alumnoRepository.findByDni(dniSoloNumeros).map(Alumno::getUsuario);
+            if (porDniLimpio.isPresent()) {
+                return porDniLimpio;
+            }
+        }
+
+        // 3. Buscar por email de contacto en la ficha del alumno
+        return alumnoRepository.findByEmailIgnoreCase(limpio)
                 .map(Alumno::getUsuario);
     }
 }

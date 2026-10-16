@@ -2,6 +2,7 @@ package com.atlas.backend.Repositorio;
 
 import com.atlas.backend.Modelo.Alumno;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,8 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
 
     @Query("SELECT a FROM Alumno a WHERE a.usuario.id = :usuarioId")
     Optional<Alumno> findByUsuarioId(@Param("usuarioId") Long usuarioId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Alumno a SET a.rutinaAlumno = null WHERE a.rutinaAlumno.id = :rutinaId")
+    void desvincularRutina(@Param("rutinaId") Long rutinaId);
 }

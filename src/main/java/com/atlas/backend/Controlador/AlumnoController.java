@@ -3,10 +3,12 @@ package com.atlas.backend.Controlador;
 import com.atlas.backend.Dto.AlumnoRequestDto;
 import com.atlas.backend.Dto.AlumnoResponseDto;
 import com.atlas.backend.Servicio.AlumnoService;
+import com.atlas.backend.Servicio.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,16 +26,27 @@ import java.util.List;
 public class AlumnoController {
 
     private final AlumnoService alumnoService;
+    private final AuthService authService;
 
-    public AlumnoController(AlumnoService alumnoService) {
+    public AlumnoController(AlumnoService alumnoService, AuthService authService) {
         this.alumnoService = alumnoService;
+        this.authService = authService;
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
     public ResponseEntity<List<AlumnoResponseDto>> listar(
-            @RequestParam(required = false) Boolean soloActivos
+            @RequestParam(required = false) Boolean soloActivos,
+            Authentication authentication
     ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            return ResponseEntity.ok(List.of(alumnoService.buscarPorId(miAlumnoId)));
+        }
+
         if (Boolean.TRUE.equals(soloActivos)) {
             return ResponseEntity.ok(alumnoService.listarActivos());
         }
