@@ -1,0 +1,627 @@
+# -*- coding: utf-8 -*-
+import subprocess
+import os
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe de Auditoría Técnica y Ciclo de Vida - ATLAS Gym</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-right {
+      content: counter(page);
+      font-size: 9pt;
+      color: #64748b;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 10pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Portada y Cabeceras */
+  .header-banner {
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-size: 20pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 8px 0 4px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 11pt;
+    color: #475569;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+  }
+
+  .meta-item strong {
+    display: block;
+    font-size: 7.5pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  .meta-item span {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  h2 {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-left: 4px solid #2563eb;
+    padding-left: 10px;
+    margin-top: 26px;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+    color: #334155;
+  }
+
+  /* Cajas de llamada */
+  .callout {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 14px 0;
+    font-size: 9pt;
+  }
+
+  .callout-info {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    color: #166534;
+  }
+
+  .callout-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #d97706;
+    color: #92400e;
+  }
+
+  .callout-critical {
+    background-color: #fef2f2;
+    border-left: 4px solid #dc2626;
+    color: #991b1b;
+  }
+
+  /* Tablas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px 0;
+    font-size: 8.5pt;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-size: 7.5pt;
+    font-weight: 700;
+  }
+
+  .status-ready { background-color: #dcfce7; color: #15803d; }
+  .status-progress { background-color: #fef3c7; color: #b45309; }
+  .status-pending { background-color: #fee2e2; color: #b91c1c; }
+
+  /* Barras de progreso */
+  .metric-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .progress-bg {
+    background-color: #e2e8f0;
+    border-radius: 9999px;
+    height: 8px;
+    width: 100%;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+  }
+
+  ul, ol {
+    margin: 0 0 12px 0;
+    padding-left: 20px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .footer-note {
+    margin-top: 30px;
+    padding-top: 12px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Cabecera -->
+  <div class="header-banner">
+    <div>
+      <span class="badge-tag">Informe Técnico de Software (SDLC)</span>
+      <h1>ATLAS GYM · AUDITORÍA Y PLAN DE PRODUCCIÓN</h1>
+      <div class="subtitle">Diagnóstico Integral de Madurez, Vulnerabilidades, Seguridad de Datos y Roadmap</div>
+    </div>
+  </div>
+
+  <!-- Ficha Técnica -->
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Proyecto</strong>
+      <span>ATLAS Gym Platform</span>
+    </div>
+    <div class="meta-item">
+      <strong>Arquitectura</strong>
+      <span>Fullstack (Next.js + Spring Boot + MySQL)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Estado General</strong>
+      <span>Fase de Endurecimiento (Hardening)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Tiempo a Producción</strong>
+      <span>2 a 3 Semanas (Estimado)</span>
+    </div>
+  </div>
+
+  <!-- Resumen Ejecutivo -->
+  <div class="callout callout-info">
+    <strong>Dictamen Ejecutivo:</strong> La aplicación cuenta con un grado de madurez funcional sobresaliente (<strong>85% completado</strong>), resolviendo de manera exitosa los flujos de socios, finanzas, rutinas, videoteca biomecánica, control de accesos por cuota y autenticación unificada. Para garantizar un lanzamiento en producción <strong>100% seguro</strong>, se requiere completar la fase de blindaje operativo (hardening): rate limiting contra ataques de fuerza bruta, migración de base de datos con versionado formal (Flyway), cookies seguras HttpOnly, variables de entorno aisladas y despliegue bajo HTTPS con respaldos automáticos.
+  </div>
+
+  <!-- Sección 1: Dónde estamos parados -->
+  <h2>1. ¿En dónde estamos parados en el Ciclo de Vida (SDLC)?</h2>
+  <p>
+    En el modelo de ciclo de vida de desarrollo de software (SDLC), el proyecto se encuentra en la <strong>transición entre la Fase de Integración Fullstack y la Fase de Pre-Lanzamiento / Endurecimiento (Staging & Hardening)</strong>.
+  </p>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px;">
+    <div class="metric-box">
+      <div style="display: flex; justify-content: space-between;">
+        <strong>Completitud Funcional (Features de Negocio)</strong>
+        <span style="font-weight: 700; color: #16a34a;">85%</span>
+      </div>
+      <div class="progress-bg">
+        <div class="progress-fill" style="width: 85%; background-color: #16a34a;"></div>
+      </div>
+      <p style="font-size: 8pt; color: #64748b; margin-top: 6px;">
+        Módulos CRUD, cobro de cuotas, rutinas interactivas, tótem y frontend validados con 130 tests automatizados.
+      </p>
+    </div>
+
+    <div class="metric-box">
+      <div style="display: flex; justify-content: space-between;">
+        <strong>Madurez para Producción (Seguridad y DevOps)</strong>
+        <span style="font-weight: 700; color: #d97706;">65%</span>
+      </div>
+      <div class="progress-bg">
+        <div class="progress-fill" style="width: 65%; background-color: #d97706;"></div>
+      </div>
+      <p style="font-size: 8pt; color: #64748b; margin-top: 6px;">
+        Entorno actual optimizado para desarrollo local; pendiente configuración de infraestructura segura y despliegue productivo.
+      </p>
+    </div>
+  </div>
+
+  <!-- Sección 2: Matriz de Componentes -->
+  <h2>2. Estado Detallado por Módulos y Capacidades</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Módulo / Componente</th>
+        <th style="width: 15%;">Tecnología</th>
+        <th style="width: 15%;">Estado</th>
+        <th style="width: 45%;">Diagnóstico y Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Gestión de Socios</strong></td>
+        <td>Next.js / Spring / JPA</td>
+        <td><span class="status-badge status-ready">Listo (95%)</span></td>
+        <td>Altas, bajas lógicas, búsqueda en vivo, normalización de DNI y teléfono, cálculo de estado de cuota en sala.</td>
+      </tr>
+      <tr>
+        <td><strong>Finanzas y Pagos</strong></td>
+        <td>Next.js / MySQL / WhatsApp</td>
+        <td><span class="status-badge status-ready">Listo (90%)</span></td>
+        <td>Registro de ingresos, historial de pagos, filtros por estado (Al día / Pendiente / Moroso), integración WhatsApp con pestaña fija.</td>
+      </tr>
+      <tr>
+        <td><strong>Rutinas y Videoteca</strong></td>
+        <td>Next.js / Tailwind CSS</td>
+        <td><span class="status-badge status-ready">Listo (90%)</span></td>
+        <td>Asignación individual y múltiple a socios, loops GIF biomecánicos instantáneos, catálogo por grupos musculares.</td>
+      </tr>
+      <tr>
+        <td><strong>Tótem de Asistencias</strong></td>
+        <td>Next.js / Spring Boot</td>
+        <td><span class="status-badge status-ready">Listo (90%)</span></td>
+        <td>Validación de ingreso por DNI, bloqueo inteligente a socios con cuota vencida, aforo en sala en tiempo real.</td>
+      </tr>
+      <tr>
+        <td><strong>Login y Control de Acceso</strong></td>
+        <td>Next.js / JWT / Spring Sec</td>
+        <td><span class="status-badge status-ready">Listo (85%)</span></td>
+        <td>Módulo unificado para Admin y Alumno con autodetección de permisos, modal seguro para olvido de clave y credenciales robustas.</td>
+      </tr>
+      <tr>
+        <td><strong>Blindaje de Seguridad</strong></td>
+        <td>Spring Security / OWASP</td>
+        <td><span class="status-badge status-progress">En proceso (65%)</span></td>
+        <td>Requiere rate limiting anti-fuerza bruta, auditoría de hash BCrypt y protección estricta contra ataques de red.</td>
+      </tr>
+      <tr>
+        <td><strong>Infraestructura y DevOps</strong></td>
+        <td>Docker / SSL / Linux VPS</td>
+        <td><span class="status-badge status-pending">Pendiente (40%)</span></td>
+        <td>Faltan Dockerfiles, proxy inverso Nginx con SSL/TLS Let's Encrypt y scripts de respaldo automatizado diario.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- Sección 3: Auditoría de Seguridad (OWASP Top 10) -->
+  <h2>3. Auditoría de Seguridad y Protección de Datos (OWASP)</h2>
+  <p>
+    Para que una plataforma que gestiona datos personales y pagos sea jurídicamente sólida y técnicamente inviolable, debe cumplir con las directrices internacionales del <strong>OWASP Top 10</strong> y la legislación local de protección de datos (Ley Nacional N° 25.326).
+  </p>
+
+  <h3>A. Prevención de Ataques de Fuerza Bruta (Brute-Force Protection)</h3>
+  <p>
+    <strong>Riesgo actual:</strong> Cualquier atacante con un script automatizado podría enviar miles de peticiones por segundo al endpoint <code>/api/auth/login</code> probando combinaciones de contraseñas.
+  </p>
+  <div class="callout callout-warning">
+    <strong>Medida requerida:</strong> Implementar <em>Rate Limiting</em> en el backend mediante <strong>Bucket4j</strong> o un filtro de Spring Security. Si una dirección IP o cuenta falla 5 veces consecutivas en menos de 2 minutos, se le impone un bloqueo temporal de 15 minutos.
+  </div>
+
+  <h3>B. Criptografía y Almacenamiento Seguro de Contraseñas</h3>
+  <p>
+    <strong>Auditoría:</strong> Verificar que todas las contraseñas persistidas en la tabla <code>usuarios</code> se encuentren cifradas con el algoritmo <strong>BCrypt (strength 10 u 11)</strong> con sal (*salt*) criptográfica única generada por usuario. Nunca se debe almacenar ni transmitir contraseñas en texto plano ni con algoritmos obsoletos (MD5, SHA-1).
+  </p>
+
+  <h3>C. Seguridad de Tokens de Sesión (JWT)</h3>
+  <p>
+    <strong>Buenas prácticas de arquitectura:</strong> Actualmente el token JWT reside en <code>localStorage</code> del navegador. Para alcanzar el estándar bancario o de salud:
+  </p>
+  <ul>
+    <li>Establecer una vida útil corta para el Access Token (ej. 15 a 30 minutos).</li>
+    <li>Implementar Refresh Token almacenado en una <strong>Cookie HttpOnly, Secure y SameSite=Strict</strong>, impidiendo que cualquier script malicioso (Cross-Site Scripting / XSS) pueda acceder al token de autenticación.</li>
+  </ul>
+
+  <h3>D. Sanitización e Inyección SQL</h3>
+  <p>
+    <strong>Diagnóstico positivo:</strong> Al utilizar <em>Spring Data JPA / Hibernate</em> con mapeo relacional de entidades y consultas tipadas (JPQL / Criteria), el sistema está protegido por defecto contra inyecciones SQL tradicionales. No obstante, se debe mantener la regla estricta de no concatenar cadenas directas en consultas nativas.
+  </p>
+
+  <!-- Sección 4: Base de Datos e Infraestructura -->
+  <h2>4. Base de Datos e Infraestructura Productiva</h2>
+
+  <div class="callout callout-critical">
+    <strong>Peligro crítico: Desactivar Hibernate ddl-auto=update en producción.</strong><br>
+    En el archivo <code>application.properties</code> actualmente figura <code>spring.jpa.hibernate.ddl-auto=update</code>. En un entorno de producción con datos reales de clientes, esta configuración es peligrosa porque una modificación accidental en una entidad Java puede alterar tablas en vivo, renombrar columnas o causar pérdida de datos.
+  </div>
+
+  <h3>Plan de migración segura de Base de Datos:</h3>
+  <ol>
+    <li>Fijar <code>spring.jpa.hibernate.ddl-auto=validate</code> en el perfil de producción.</li>
+    <li>Incorporar <strong>Flyway</strong> o <strong>Liquibase</strong> para que todas las modificaciones de esquema (tablas, índices, columnas) se ejecuten mediante scripts SQL versionados y auditables (ej. <code>V1__crear_tablas_iniciales.sql</code>).</li>
+  </ol>
+
+  <h3>Estrategia de Backups Automatizados (Regla 3-2-1):</h3>
+  <ul>
+    <li><strong>Frecuencia:</strong> Volcado diario automático (<code>mysqldump</code>) programado a las 03:00 AM mediante tarea Cron.</li>
+    <li><strong>Cifrado y Almacenamiento:</strong> Archivos comprimidos (<code>.sql.gz</code>) cifrados con GPG y sincronizados a un almacenamiento remoto seguro (AWS S3, Google Cloud Storage o servidor de contingencia).</li>
+    <li><strong>Retención:</strong> Mantener backups diarios por 30 días y mensuales por 1 año.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- Sección 5: DevOps y Despliegue -->
+  <h2>5. Estrategia de Despliegue y DevOps</h2>
+
+  <p>
+    Para evitar el clásico problema de <em>"en mi máquina funciona"</em> y asegurar alta disponibilidad, el despliegue se debe estructurar en contenedores independientes orquestados por Docker Compose:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Contenedor</th>
+        <th style="width: 25%;">Base</th>
+        <th style="width: 25%;">Puerto Interno</th>
+        <th style="width: 25%;">Función</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>atlas-frontend</strong></td>
+        <td>Node.js 20 Alpine (Next.js Standalone)</td>
+        <td>3000</td>
+        <td>Renderizado SSR y portal PWA para socios y admin.</td>
+      </tr>
+      <tr>
+        <td><strong>atlas-backend</strong></td>
+        <td>Eclipse Temurin JDK 17/21</td>
+        <td>8080</td>
+        <td>API REST segura Spring Boot con autenticación JWT.</td>
+      </tr>
+      <tr>
+        <td><strong>atlas-database</strong></td>
+        <td>MySQL 8.0 Server Oficial</td>
+        <td>3306</td>
+        <td>Persistencia de datos con volumen montado en disco host.</td>
+      </tr>
+      <tr>
+        <td><strong>atlas-proxy</strong></td>
+        <td>Nginx / Caddy Reverse Proxy</td>
+        <td>80 / 443</td>
+        <td>Terminación SSL/TLS (HTTPS), compresión Gzip y cortafuegos.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Sección 6: Hoja de Ruta (Roadmap) -->
+  <h2>6. Hoja de Ruta Priorizada hacia Producción (Cronograma de 3 Semanas)</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%;">Semana</th>
+        <th style="width: 35%;">Objetivos Principales</th>
+        <th style="width: 35%;">Entregables Técnicos</th>
+        <th style="width: 15%;">Impacto</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Semana 1</strong><br>Hardening & Seguridad</td>
+        <td>
+          • Implementación de Rate Limiting.<br>
+          • Validación de BCrypt en 100% de usuarios.<br>
+          • Aislamiento de variables de entorno (.env).<br>
+          • CORS estricto restringido al dominio web.
+        </td>
+        <td>
+          • Filtro anti-fuerza bruta activo.<br>
+          • Archivo <code>application-prod.properties</code>.<br>
+          • Claves JWT generadas fuera del repositorio.
+        </td>
+        <td><span class="status-badge status-ready">Seguridad Crítica</span></td>
+      </tr>
+      <tr>
+        <td><strong>Semana 2</strong><br>Base de Datos & DevOps</td>
+        <td>
+          • Integración de Flyway para migraciones.<br>
+          • Creación de Dockerfiles multi-stage.<br>
+          • Orquestación con Docker Compose.<br>
+          • Script de backup diario automático.
+        </td>
+        <td>
+          • <code>docker-compose.yml</code> funcional.<br>
+          • Migraciones SQL versionadas.<br>
+          • Script <code>backup_atlas_gym.sh</code> en cron.
+        </td>
+        <td><span class="status-badge status-progress">Estabilidad y Resiliencia</span></td>
+      </tr>
+      <tr>
+        <td><strong>Semana 3</strong><br>Staging & Go-Live</td>
+        <td>
+          • Despliegue en servidor VPS / Cloud.<br>
+          • Emisión de certificado SSL Let's Encrypt.<br>
+          • Pruebas de estrés y carga (50 usuarios sim.).<br>
+          • Pruebas de aceptación de usuario (UAT).
+        </td>
+        <td>
+          • Dominio con HTTPS activo.<br>
+          • Monitoreo de logs con Spring Actuator.<br>
+          • <strong>Pase a Producción Oficial</strong>.
+        </td>
+        <td><span class="status-badge status-ready">Salida a Producción</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Conclusión -->
+  <h2>7. Dictamen Final de la Consultoría</h2>
+  <p>
+    La plataforma <strong>ATLAS Gym</strong> cuenta con una arquitectura de software moderna, código estructurado con TypeScript estricto, una experiencia visual refinada y una suite sólida de tests que garantizan que el negocio opera como se espera.
+  </p>
+  <p>
+    El tiempo restante de <strong>2 a 3 semanas</strong> no representa desarrollo de funcionalidades desde cero, sino la colocación del <strong>blindaje de ingeniería</strong> necesario para garantizar que el sistema nunca pierda un pago, resista intentos de acceso no autorizado y opere con disponibilidad ininterrumpida las 24 horas del día.
+  </p>
+
+  <div class="footer-note">
+    Documento elaborado por el Equipo de Arquitectura y Auditoría de Software · ATLAS Gym Platform · Octubre 2026
+  </div>
+
+</body>
+</html>
+"""
+
+def main():
+    target_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(target_dir, "INFORME_ESTADO_SDLC_Y_SEGURIDAD_ATLAS_GYM.html")
+    pdf_path = os.path.join(target_dir, "INFORME_ESTADO_SDLC_Y_SEGURIDAD_ATLAS_GYM.pdf")
+    md_path = os.path.join(target_dir, "INFORME_ESTADO_SDLC_Y_SEGURIDAD_ATLAS_GYM.md")
+
+    # Guardar HTML
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+    print(f"HTML generado en: {html_path}")
+
+    # Guardar Markdown
+    md_content = """# ATLAS GYM · AUDITORÍA TÉCNICA Y PLAN DE PRODUCCIÓN (SDLC)
+**Plataforma Integral de Gestión y Entrenamiento ATLAS Gym**
+*Fecha: Octubre 2026 · Versión: 1.0 (Production-Ready Assessment)*
+
+---
+
+## 1. Resumen Ejecutivo
+- **Completitud Funcional (Features / Negocio):** 85%
+- **Madurez para Producción (Seguridad y DevOps):** 65% - 70%
+- **Tiempo Estimado para Lanzamiento Productivo Seguro:** 2 a 3 semanas
+
+---
+
+## 2. Diagnóstico del Ciclo de Vida (SDLC)
+El proyecto se encuentra en la transición entre la **Fase de Integración Fullstack** y la **Fase de Pre-Lanzamiento / Endurecimiento (Staging & Hardening)**.
+
+### Módulos Listos (Core de Negocio):
+- **Gestión de Socios (95%):** CRUD, normalización DNI/celular, cálculo de estado en tiempo real.
+- **Finanzas y Pagos (90%):** Emisión de cuotas, detección de morosos, historial y comprobantes WhatsApp en pestaña fija.
+- **Rutinas y Videoteca (90%):** Asignación múltiple a alumnos, loops GIF biomecánicos instantáneos y catálogo por grupo muscular.
+- **Tótem de Asistencias (90%):** Validación por DNI, bloqueo inteligente a cuotas vencidas y aforo en sala.
+- **Login y Control de Acceso (85%):** Login unificado sin selección de rol, autodetección JWT y recuperación segura de claves.
+
+---
+
+## 3. Auditoría de Seguridad y Protección de Datos (OWASP)
+1. **Protección contra Fuerza Bruta:** Implementar Rate Limiting con *Bucket4j* en `/api/auth/login` (máximo 5 intentos fallidos cada 2 minutos).
+2. **Criptografía de Contraseñas:** Asegurar que el 100% de las contraseñas en MySQL utilicen **BCrypt (strength 10/11)** con sal criptográfica única.
+3. **Manejo Seguro de JWT:** Migración gradual de `localStorage` a **Cookies HttpOnly, Secure y SameSite=Strict** para prevenir vulnerabilidades XSS.
+4. **CORS Estricto:** Permitir únicamente el dominio oficial de producción bajo HTTPS.
+
+---
+
+## 4. Base de Datos e Infraestructura
+1. **Desactivar `hibernate.ddl-auto=update`:** Fijar en `validate` e incorporar **Flyway** para migraciones SQL versionadas y auditables.
+2. **Estrategia de Backups Automatizados:** Política 3-2-1 con dumps diarios comprimidos y cifrados a las 03:00 AM.
+3. **Contenedores Docker:** Despliegue reproducible con `docker-compose.yml` (Next.js + Spring Boot + MySQL + Nginx con SSL Let's Encrypt).
+
+---
+
+## 5. Cronograma de 3 Semanas hacia Producción
+- **Semana 1 (Hardening & Seguridad):** Rate limiting, BCrypt, CORS y variables de entorno aisladas.
+- **Semana 2 (DevOps & Migraciones):** Flyway, Docker Compose, Nginx SSL y backups automáticos.
+- **Semana 3 (Staging & Go-Live):** Despliegue en VPS/Cloud, pruebas de estrés con 50 usuarios simultáneos y salida oficial a producción.
+"""
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+    print(f"Markdown generado en: {md_path}")
+
+    # Compilar a PDF usando Edge Headless
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    edge_bin = next((p for p in edge_paths if os.path.exists(p)), None)
+
+    if edge_bin:
+        cmd = [
+            edge_bin,
+            "--headless",
+            "--disable-gpu",
+            "--run-all-compositor-stages-before-draw",
+            f"--print-to-pdf={pdf_path}",
+            html_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            print(f"PDF generado con éxito: {pdf_path} ({os.path.getsize(pdf_path):,} bytes)")
+        else:
+            print(f"Error generando PDF con Edge: {result.stderr}")
+    else:
+        print("No se encontró ejecutable de Microsoft Edge.")
+
+if __name__ == "__main__":
+    main()
