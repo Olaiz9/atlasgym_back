@@ -7,6 +7,7 @@ import com.atlas.backend.Servicio.RutinaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,7 +62,18 @@ public class RutinaController {
 
     @GetMapping("/alumno/{alumnoId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
-    public ResponseEntity<RutinaResponseDto> obtenerRutinaDeAlumno(@PathVariable Long alumnoId) {
+    public ResponseEntity<RutinaResponseDto> obtenerRutinaDeAlumno(
+            @PathVariable Long alumnoId,
+            Authentication authentication
+    ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            if (!alumnoId.equals(miAlumnoId)) {
+                throw new AccessDeniedException("Solo puede consultar su propia rutina.");
+            }
+        }
         RutinaResponseDto rutina = rutinaService.obtenerRutinaDeAlumno(alumnoId);
         if (rutina == null) {
             return ResponseEntity.noContent().build();

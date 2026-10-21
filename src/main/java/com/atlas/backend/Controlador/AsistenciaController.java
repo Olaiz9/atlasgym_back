@@ -9,6 +9,7 @@ import com.atlas.backend.Servicio.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -71,7 +72,18 @@ public class AsistenciaController {
 
     @GetMapping("/alumno/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
-    public ResponseEntity<List<AsistenciaResponseDto>> historialPorAlumno(@PathVariable Long id) {
+    public ResponseEntity<List<AsistenciaResponseDto>> historialPorAlumno(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!esAdmin && authentication != null) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            if (!id.equals(miAlumnoId)) {
+                throw new AccessDeniedException("Solo puede consultar sus propias asistencias.");
+            }
+        }
         List<AsistenciaResponseDto> asistencias = asistenciaService.historialPorAlumno(id);
         return ResponseEntity.ok(asistencias);
     }

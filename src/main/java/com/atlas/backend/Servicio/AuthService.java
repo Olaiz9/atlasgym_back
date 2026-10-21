@@ -12,6 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
+
 @Service
 public class AuthService {
 
@@ -105,6 +108,52 @@ public class AuthService {
         );
     }
 
+    @Transactional
+    public LoginResponse actualizarPerfil(String identificador, Map<String, String> cambios) {
+        Usuario usuario = resolverUsuarioPorIdentificador(identificador)
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado: " + identificador, 404));
+
+        if (cambios != null) {
+            if (cambios.containsKey("password")) {
+                String nuevaPassword = cambios.get("password");
+                if (nuevaPassword != null && !nuevaPassword.isBlank()) {
+                    if (nuevaPassword.trim().length() < 6) {
+                        throw new BusinessException("La contraseña debe tener al menos 6 caracteres.", 400);
+                    }
+                    usuario.setPassword(passwordEncoder.encode(nuevaPassword.trim()));
+                }
+            }
+            if (cambios.containsKey("fotoUrl")) {
+                String fotoUrl = cambios.get("fotoUrl");
+                usuario.setFotoUrl(fotoUrl != null && !fotoUrl.isBlank() ? fotoUrl.trim() : null);
+            }
+        }
+        usuarioRepository.save(usuario);
+
+        Alumno alumnoVinculado = usuario.getAlumno() != null ? usuario.getAlumno()
+                : alumnoRepository.findByUsuarioId(usuario.getId()).orElse(null);
+
+        if (alumnoVinculado != null && cambios != null && cambios.containsKey("celular")) {
+            String celular = cambios.get("celular");
+            alumnoVinculado.setCelular(celular != null ? celular.trim() : null);
+            alumnoRepository.save(alumnoVinculado);
+        }
+
+        Long alumnoId = alumnoVinculado != null ? alumnoVinculado.getIdAlumno() : null;
+        String nombreMostrar = alumnoVinculado != null ? alumnoVinculado.getNombre() : usuario.getEmail();
+        String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
+
+        return new LoginResponse(
+                null,
+                usuario.getId(),
+                nombreMostrar,
+                usuario.getEmail(),
+                rolNombre,
+                alumnoId,
+                usuario.getFotoUrl()
+        );
+    }
+
     @Transactional(readOnly = true)
     public Long resolverUsuarioIdPorEmail(String email) {
         return resolverUsuarioPorIdentificador(email)
@@ -126,9 +175,9 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException("El usuario no tiene una ficha de alumno asociada.", 404));
     }
 
-    private java.util.Optional<Usuario> resolverUsuarioPorIdentificador(String identificador) {
+    private Optional<Usuario> resolverUsuarioPorIdentificador(String identificador) {
         if (identificador == null || identificador.isBlank()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
         String limpio = identificador.trim();
 
