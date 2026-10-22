@@ -1,0 +1,588 @@
+# -*- coding: utf-8 -*-
+import subprocess
+import os
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Guía de Despliegue Moderno y Seguridad con Cloudflare - ATLAS Gym</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-right {
+      content: counter(page);
+      font-size: 9pt;
+      color: #64748b;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 9.5pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .header-banner {
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 12px;
+    margin-bottom: 22px;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-size: 19pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 8px 0 4px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 10.5pt;
+    color: #475569;
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 22px;
+  }
+
+  .meta-item strong {
+    display: block;
+    font-size: 7.5pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  .meta-item span {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  h2 {
+    font-size: 12.5pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-left: 4px solid #2563eb;
+    padding-left: 10px;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+    color: #334155;
+  }
+
+  .callout {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 12px 0;
+    font-size: 9pt;
+  }
+
+  .callout-info {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    color: #166534;
+  }
+
+  .callout-blue {
+    background-color: #eff6ff;
+    border-left: 4px solid #2563eb;
+    color: #1e40af;
+  }
+
+  .callout-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #d97706;
+    color: #92400e;
+  }
+
+  .callout-shield {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #0f172a;
+    color: #0f172a;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px 0;
+    font-size: 8.5pt;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .code-badge {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: Consolas, monospace;
+    font-size: 8pt;
+    border: 1px solid #cbd5e1;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-size: 7.5pt;
+    font-weight: 700;
+  }
+
+  .status-ready { background-color: #dcfce7; color: #15803d; }
+  .status-cloudflare { background-color: #ffedd5; color: #c2410c; }
+
+  ul, ol {
+    margin: 0 0 12px 0;
+    padding-left: 20px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  .diagram-box {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: Consolas, monospace;
+    font-size: 8pt;
+    line-height: 1.5;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .footer-note {
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Cabecera -->
+  <div class="header-banner">
+    <span class="badge-tag">Manual de Infraestructura y Despliegue</span>
+    <h1>DESPLIEGUE MODERNO CON CLOUDFLARE, VPS Y DOCKER</h1>
+    <div class="subtitle">Estrategia Zero-Trust, Gestión de Cuentas, Túneles Cifrados y Contenedores para ATLAS Gym</div>
+  </div>
+
+  <!-- Ficha Técnica -->
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Plataforma</strong>
+      <span>ATLAS Gym Fullstack</span>
+    </div>
+    <div class="meta-item">
+      <strong>Hosting & Cómputo</strong>
+      <span>VPS Hostinger (Ubuntu Linux)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Seguridad & Red</strong>
+      <span>Cloudflare (Zero-Trust Tunnels)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Estrategia</strong>
+      <span>100% Moderna (Sin puertos abiertos)</span>
+    </div>
+  </div>
+
+  <!-- Resumen Ejecutivo -->
+  <div class="callout callout-info">
+    <strong>Resumen Ejecutivo:</strong> Este documento consolida la arquitectura de despliegue más segura, moderna y económica para la plataforma <strong>ATLAS Gym</strong>. Descartando configuraciones manuales obsoletas (como abrir puertos en cortafuegos o renovar certificados SSL en Linux a mano), se adopta el estándar <strong>Cloudflare Tunnel (Zero Trust)</strong>. El servidor VPS de Hostinger corre los contenedores Docker de forma aislada, manteniendo cerrados todos los puertos de entrada, mientras Cloudflare administra el dominio, provee HTTPS automático y absorbe cualquier intento de ataque DDoS.
+  </div>
+
+  <!-- Sección 1: El Trío de la Arquitectura -->
+  <h2>1. La Topología Moderna: Cómo se Conectan las Tres Piezas</h2>
+  <p>
+    El sistema opera mediante tres componentes especializados donde cada uno cumple una función exclusiva y sin solapamiento:
+  </p>
+
+  <div class="diagram-box">
+[ ALUMNO / CLIENTE ]
+        │  (HTTPS Seguro con Candado SSL de Cloudflare)
+        ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        CLOUDFLARE (EDGE & WAF)                         │
+│  • Gestiona el dominio (atlasgym.com y api.atlasgym.com)               │
+│  • Certificado SSL/TLS universal automático                            │
+│  • Cortafuegos WAF anti-DDoS y bloqueo de bots maliciosos              │
+│  • Terminación del Túnel Cifrado Saliente (Cloudflare Tunnel)          │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │  (Conexión saliente segura / Cero puertos abiertos)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       HOSTINGER VPS (UBUNTU LINUX)                     │
+│                                                                        │
+│  Daemon: [ cloudflared ] ─── Encamina el tráfico localmente:          │
+│           ├── atlasgym.com      ──► Contenedor Next.js (Puerto 3000)   │
+│           └── api.atlasgym.com  ──► Contenedor Spring Boot (8080)     │
+│                                                                        │
+│  Red Privada Interna (Docker Bridge):                                  │
+│           └── Spring Boot (8080) ──► MySQL 8.0 (3306 - Privado)        │
+└────────────────────────────────────────────────────────────────────────┘
+  </div>
+
+  <!-- Sección 2: Titularidad de Cuentas y Delegación -->
+  <h2>2. Titularidad de Cuentas y Gestión Profesional de Accesos</h2>
+  <p>
+    Por seguridad jurídica, contable y técnica, <strong>las cuentas maestras deben pertenecer al cliente (dueño del gimnasio)</strong>. La gestión técnica se delega al equipo de desarrollo mediante mecanismos oficiales sin compartir claves personales:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Plataforma</th>
+        <th style="width: 35%;">Titularidad (Cliente)</th>
+        <th style="width: 45%;">Mecanismo de Acceso Técnico (Desarrollador)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Hostinger (VPS)</strong></td>
+        <td>Cuenta creada con email institucional del gym y tarjeta del cliente para el débito automático.</td>
+        <td>
+          El cliente usa la función <strong>"Compartir cuenta" (Account Sharing)</strong> invitando al email del programador. El desarrollador administra el servidor sin ver datos de tarjetas ni facturación.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Cloudflare</strong></td>
+        <td>Cuenta gratuita registrada con el correo del gimnasio donde se vincula el dominio adquirido.</td>
+        <td>
+          El cliente añade al desarrollador en <strong>Manage Account ➔ Members</strong> con rol de <em>Administrator</em>. Permite configurar DNS, túneles y reglas de seguridad sin intermediarios.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>GitHub</strong></td>
+        <td>Repositorio de la organización o del desarrollador con control de versiones.</td>
+        <td>
+          Se generan <strong>Deploy Keys (llaves SSH de solo lectura)</strong> en el VPS de Hostinger para permitir la descarga segura del código fuente sin exponer contraseñas.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- Sección 3: Dominio y DNS -->
+  <h2>3. Registro de Dominio y DNS con Cloudflare</h2>
+
+  <h3>A. Selección y Registro</h3>
+  <ul>
+    <li><strong>Dominio Internacional (.com):</strong> Se recomienda registrarlo directamente en <strong>Cloudflare Registrar</strong> (~$10 USD/año al costo mayorista sin recargos) o en proveedores reconocidos como Namecheap.</li>
+    <li><strong>Dominio Nacional (.com.ar):</strong> Se gestiona ante <strong>NIC Argentina</strong> en moneda local. Una vez otorgado, se cambian los DNS primarios apuntando a los *Nameservers* asignados por Cloudflare.</li>
+  </ul>
+
+  <h3>B. Estructura de Subdominios Recomendada</h3>
+  <ul>
+    <li><span class="code-badge">atlasgym.com</span> o <span class="code-badge">app.atlasgym.com</span>: Destinado a la interfaz visual de Next.js (Portal del alumno, panel administrativo y tótem).</li>
+    <li><span class="code-badge">api.atlasgym.com</span>: Destinado a la API REST de Spring Boot (Endpoints de autenticación, cuotas y rutinas).</li>
+  </ul>
+
+  <!-- Sección 4: Cloudflare Tunnel -->
+  <h2>4. La Solución Moderna: Cloudflare Tunnel (Zero-Trust)</h2>
+  <p>
+    Históricamente, para publicar una web en un VPS se requería abrir los puertos 80 y 443 en el router/firewall, configurar Nginx en Linux y pelear con la renovación periódica de certificados Let's Encrypt. <strong>Cloudflare Tunnel reemplaza por completo ese esquema obsoleto.</strong>
+  </p>
+
+  <div class="callout callout-shield">
+    <strong>¿Cómo funciona Cloudflare Tunnel?</strong><br>
+    Se instala un agente ligero en el VPS llamado <span class="code-badge">cloudflared</span>. Este agente establece una conexión saliente TLS segura con el centro de datos más cercano de Cloudflare. El tráfico de los alumnos entra por Cloudflare y baja por ese túnel privado directo a los contenedores locales.
+  </div>
+
+  <h3>Ventajas del enfoque moderno:</h3>
+  <ol>
+    <li><strong>Cero puertos de entrada abiertos en el VPS:</strong> El cortafuegos de Hostinger puede tener cerrados el puerto 80, 443 y 3306. Los escaneos de puertos de hackers rebotan por completo.</li>
+    <li><strong>IP de Hostinger 100% anónima:</strong> Nadie en internet puede descubrir cuál es la dirección IP real de tu servidor.</li>
+    <li><strong>Certificados SSL transparentes:</strong> Cloudflare emite y renueva el candado HTTPS en sus servidores de borde sin necesidad de configurar nada en Linux.</li>
+    <li><strong>Configuración visual desde el navegador:</strong> Los subdominios se asocian en el panel de Cloudflare Zero Trust indicando simplemente:
+      <ul>
+        <li>Dominio <span class="code-badge">atlasgym.com</span> ➔ Servicio <span class="code-badge">http://localhost:3000</span></li>
+        <li>Dominio <span class="code-badge">api.atlasgym.com</span> ➔ Servicio <span class="code-badge">http://localhost:8080</span></li>
+      </ul>
+    </li>
+  </ol>
+
+  <!-- Sección 5: Docker y Despliegue -->
+  <h2>5. Arquitectura de Contenedores Docker en el Servidor</h2>
+  <p>
+    En el VPS de Hostinger se levanta la solución completa mediante <strong>Docker Compose</strong>. Los tres servicios conviven en una red interna cifrada donde MySQL nunca se expone a internet:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Servicio</th>
+        <th style="width: 30%;">Técnica Docker</th>
+        <th style="width: 25%;">Seguridad</th>
+        <th style="width: 25%;">Persistencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Backend (Spring Boot)</strong></td>
+        <td>Multi-stage: compila con Maven JDK 17 y corre sobre JRE 17 Alpine (~180 MB).</td>
+        <td>Usuario sin privilegios (<span class="code-badge">atlasuser</span>), no-root.</td>
+        <td>Estateless (sin estado en disco).</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend (Next.js 16)</strong></td>
+        <td>Build optimizado <span class="code-badge">standalone</span> sobre Node 20 Alpine (~100 MB).</td>
+        <td>Usuario sin privilegios (<span class="code-badge">nextjs</span>), no-root.</td>
+        <td>Estateless (cacheado en memoria).</td>
+      </tr>
+      <tr>
+        <td><strong>Base de Datos (MySQL 8)</strong></td>
+        <td>Imagen oficial con charset UTF8MB4 y credenciales inyectadas por entorno.</td>
+        <td>Aislado en red interna. Puerto 3306 <strong>no mapeado al host</strong>.</td>
+        <td>Volumen persistente montado en disco host (<span class="code-badge">mysql_data</span>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- Sección 6: Ciclo de Actualizaciones -->
+  <h2>6. Ciclo de Vida de Actualizaciones en Producción</h2>
+  <p>
+    El mantenimiento diario y subida de nuevas características se realiza sin fricción en cuestión de segundos:
+  </p>
+
+  <div class="diagram-box">
+1. DESARROLLO (Tu PC):
+   git add . && git commit -m "feat: nueva mejora" && git push origin main
+
+2. VPS DE HOSTINGER:
+   ssh root@ip-del-vps
+   cd atlasgym
+   git pull
+   docker compose up -d --build
+  </div>
+
+  <div class="callout callout-blue">
+    <strong>Recompilación inteligente:</strong> Gracias al sistema de capas de Docker, al ejecutar <span class="code-badge">docker compose up -d --build</span>, Docker solo recompila los archivos modificados. El tiempo de bajada y actualización toma menos de 45 segundos y la base de datos MySQL no se reinicia ni pierde datos.
+  </div>
+
+  <!-- Sección 7: Checklist Paso a Paso -->
+  <h2>7. Checklist Secuencial de Puesta en Marcha (Paso a Paso)</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%;">Etapa</th>
+        <th style="width: 45%;">Acciones Clave</th>
+        <th style="width: 40%;">Resultado Verificable</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Paso 1: Dominio</strong></td>
+        <td>
+          • Adquisición del dominio a nombre del cliente.<br>
+          • Creación de cuenta Cloudflare y cambio de Nameservers.
+        </td>
+        <td>Dominio activo en Cloudflare con estado "Active".</td>
+      </tr>
+      <tr>
+        <td><strong>Paso 2: VPS Hostinger</strong></td>
+        <td>
+          • Alta de VPS Ubuntu en Hostinger a nombre del cliente.<br>
+          • Invitación de acceso técnico compartida al desarrollador.<br>
+          • Instalación de Docker y Docker Compose en el servidor.
+        </td>
+        <td>Servidor accesible vía SSH con Docker listo.</td>
+      </tr>
+      <tr>
+        <td><strong>Paso 3: Clonado y Docker</strong></td>
+        <td>
+          • Clonado de repositorios en el servidor vía Git.<br>
+          • Configuración de variables de entorno seguras (<span class="code-badge">.env</span>).<br>
+          • Ejecución de <span class="code-badge">docker compose up -d</span>.
+        </td>
+        <td>Contenedores corriendo en puertos internos 3000 y 8080.</td>
+      </tr>
+      <tr>
+        <td><strong>Paso 4: Cloudflare Tunnel</strong></td>
+        <td>
+          • Creación del túnel en Cloudflare Zero Trust.<br>
+          • Instalación de <span class="code-badge">cloudflared</span> en el VPS.<br>
+          • Mapeo de <span class="code-badge">atlasgym.com</span> a puerto 3000 y <span class="code-badge">api.</span> a puerto 8080.
+        </td>
+        <td>Túnel conectado en estado "HEALTHY".</td>
+      </tr>
+      <tr>
+        <td><strong>Paso 5: Lanzamiento</strong></td>
+        <td>
+          • Activación de modo SSL "Full (Strict)" y "Always HTTPS".<br>
+          • Prueba de inicio de sesión real en celular y navegador.
+        </td>
+        <td><strong>Plataforma 100% online y protegida.</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer-note">
+    Documento elaborado por el Equipo de Arquitectura de Software & DevOps · ATLAS Gym Platform · Octubre 2026
+  </div>
+
+</body>
+</html>
+"""
+
+def main():
+    target_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(target_dir, "GUIA_DESPLIEGUE_MODERNO_CLOUDFLARE_ATLAS_GYM.html")
+    pdf_path = os.path.join(target_dir, "GUIA_DESPLIEGUE_MODERNO_CLOUDFLARE_ATLAS_GYM.pdf")
+    md_path = os.path.join(target_dir, "GUIA_DESPLIEGUE_MODERNO_CLOUDFLARE_ATLAS_GYM.md")
+
+    # Guardar HTML
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+    print(f"HTML generado en: {html_path}")
+
+    # Guardar Markdown
+    md_content = """# GUÍA DE DESPLIEGUE MODERNO: CLOUDFLARE, HOSTINGER VPS Y DOCKER
+**Plataforma Integral de Gestión y Entrenamiento ATLAS Gym**
+*Arquitectura Zero-Trust, Cero Puertos Abiertos y Contenedores Multi-Stage*
+
+---
+
+## 1. La Topología Moderna (El Trío de Infraestructura)
+1. **Hostinger (VPS Ubuntu):** El músculo de cómputo donde corren los contenedores Docker aislados.
+2. **GitHub:** El repositorio central donde reside el código fuente y desde donde el VPS descarga actualizaciones (`git pull`).
+3. **Cloudflare (Zero-Trust):** El escudo perimetral que administra el dominio, provee HTTPS automático y canaliza el tráfico mediante un túnel cifrado saliente (**Cloudflare Tunnel**).
+
+---
+
+## 2. Titularidad y Acceso Técnico
+- **Cuentas a nombre del cliente:** El dominio y el hosting son contratados por el dueño del gimnasio con sus datos de facturación para proteger la propiedad legal del activo.
+- **Delegación técnica:**
+  - En **Hostinger**: El cliente usa *Account Sharing* e invita al programador.
+  - En **Cloudflare**: El cliente usa *Members / IAM* y asigna rol de *Administrator*.
+  - El desarrollador opera con su propio usuario sin ver números de tarjeta ni facturación.
+
+---
+
+## 3. La Solución Moderna: Cloudflare Tunnel (cloudflared)
+- **Cero puertos de entrada abiertos:** Se cierran los puertos 80, 443 y 3306 en el cortafuegos de Hostinger.
+- **IP oculta:** La dirección IP del servidor nunca se publica en internet.
+- **SSL automático:** Certificado HTTPS gestionado por Cloudflare en sus servidores de borde.
+- **Ruteo interno:**
+  - `atlasgym.com` ➔ `http://localhost:3000` (Next.js)
+  - `api.atlasgym.com` ➔ `http://localhost:8080` (Spring Boot)
+
+---
+
+## 4. Contenedores Docker
+- **Backend:** Spring Boot empaquetado en imagen JRE 17 Alpine no-root (~180 MB).
+- **Frontend:** Next.js optimizado con `output: 'standalone'` sobre Node 20 Alpine (~100 MB).
+- **MySQL 8:** Persistencia mediante volumen de disco (`mysql_data`) y red privada interna sin acceso desde internet.
+
+---
+
+## 5. Ciclo de Actualizaciones
+1. En tu máquina: `git push origin main`
+2. En el VPS: `git pull && docker compose up -d --build` (actualización sin cortes en menos de 45 segundos).
+"""
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+    print(f"Markdown generado en: {md_path}")
+
+    # Compilar a PDF usando Edge Headless
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    edge_bin = next((p for p in edge_paths if os.path.exists(p)), None)
+
+    if edge_bin:
+        cmd = [
+            edge_bin,
+            "--headless",
+            "--disable-gpu",
+            "--run-all-compositor-stages-before-draw",
+            f"--print-to-pdf={pdf_path}",
+            html_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            print(f"PDF generado con éxito: {pdf_path} ({os.path.getsize(pdf_path):,} bytes)")
+        else:
+            print(f"Error generando PDF con Edge: {result.stderr}")
+    else:
+        print("No se encontró ejecutable de Microsoft Edge.")
+
+if __name__ == "__main__":
+    main()
