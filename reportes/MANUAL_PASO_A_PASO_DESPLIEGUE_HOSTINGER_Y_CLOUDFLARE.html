@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual Paso a Paso de Despliegue - Hostinger VPS y Cloudflare</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 15mm 18mm 15mm;
+    @bottom-right {
+      content: counter(page);
+      font-size: 8.5pt;
+      color: #64748b;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.5;
+    font-size: 9pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .header-banner {
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 3px 9px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-size: 18pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 6px 0 3px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 10pt;
+    color: #475569;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+  }
+
+  .meta-item strong {
+    display: block;
+    font-size: 7pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  .meta-item span {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  h2 {
+    font-size: 11.5pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-left: 4px solid #2563eb;
+    padding-left: 8px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-top: 12px;
+    margin-bottom: 5px;
+  }
+
+  p {
+    margin: 0 0 8px 0;
+    color: #334155;
+  }
+
+  .callout {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 8.5pt;
+  }
+
+  .callout-success {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    color: #166534;
+  }
+
+  .callout-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #d97706;
+    color: #92400e;
+  }
+
+  .callout-danger {
+    background-color: #fef2f2;
+    border-left: 4px solid #dc2626;
+    color: #991b1b;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px 0;
+    font-size: 8pt;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 7px 9px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .code-badge {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: Consolas, monospace;
+    font-size: 8pt;
+    border: 1px solid #cbd5e1;
+  }
+
+  .terminal-box {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: Consolas, monospace;
+    font-size: 8pt;
+    line-height: 1.45;
+    margin: 10px 0;
+  }
+
+  .tag-ok {
+    background-color: #dcfce7;
+    color: #15803d;
+    padding: 2px 6px;
+    border-radius: 9999px;
+    font-weight: 700;
+  }
+
+  .tag-no {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 2px 6px;
+    border-radius: 9999px;
+    font-weight: 700;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 18px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  .step-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background-color: #f8fafc;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 10pt;
+    color: #0f172a;
+    margin-bottom: 6px;
+  }
+
+  .step-num {
+    background-color: #2563eb;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .footer-note {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 7.5pt;
+    color: #64748b;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <div class="header-banner">
+    <span class="badge-tag">Guía de Campo para Reunión con el Cliente</span>
+    <h1>TUTORIAL PASO A PASO: SUBIDA A PRODUCCIÓN</h1>
+    <div class="subtitle">Elección de Servicios en Hostinger, Configuración de Cloudflare y Puesta en Marcha</div>
+  </div>
+
+  <!-- Ficha Técnica -->
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Servicio a Contratar</strong>
+      <span>Hosting VPS (KVM 2)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Proveedor Cómputo</strong>
+      <span>Hostinger</span>
+    </div>
+    <div class="meta-item">
+      <strong>Red y Seguridad</strong>
+      <span>Cloudflare (Zero Trust)</span>
+    </div>
+    <div class="meta-item">
+      <strong>Tiempo Estimado Setup</strong>
+      <span>30 a 45 Minutos</span>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: Cuál comprar -->
+  <h2>1. Elección del Plan en Hostinger (¿Cuál Comprar?)</h2>
+  <p>
+    En el catálogo de servicios de Hostinger aparecen tres categorías principales. Es fundamental elegir la correcta para no perder tiempo ni dinero:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Opción en Pantalla</th>
+        <th style="width: 15%;">Veredicto</th>
+        <th style="width: 60%;">Explicación Técnica</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Hosting VPS</strong><br><em>(Ícono del rayito violeta)</em></td>
+        <td><span class="tag-ok">ELEGIR ESTA</span></td>
+        <td>
+          <strong>Es la única opción que sirve.</strong> Proporciona un servidor virtual con Linux (Ubuntu), acceso SSH de Administrador (<span class="code-badge">root</span>) y capacidad para instalar Docker, correr Spring Boot con Java 17, Next.js en Node 20 y MySQL 8.0.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Hosting web</strong><br><em>(Hosting compartido)</em></td>
+        <td><span class="tag-no">NO SIRVE</span></td>
+        <td>
+          Está diseñado exclusivamente para sitios viejos en PHP o WordPress. No tiene terminal SSH de administrador, no permite instalar Docker ni correr procesos de Java en segundo plano.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Cloud hosting</strong></td>
+        <td><span class="tag-no">NO SIRVE</span></td>
+        <td>
+          Es una variante más cara del hosting web compartido (para tiendas masivas de WordPress). No otorga control sobre el sistema operativo ni soporte para contenedores.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Recomendación exacta de hardware VPS:</h3>
+  <ul>
+    <li><strong>Plan KVM 2 (Recomendado):</strong> 2 vCPU · 8 GB RAM · 100 GB NVMe. Permite que Spring Boot (~1.5 GB), MySQL (~1 GB) y Next.js (~500 MB) corran con total holgura, soportando cientos de socios simultáneos.</li>
+    <li><strong>Plan KVM 1 (Mínimo viable):</strong> 1 vCPU · 4 GB RAM · 50 GB NVMe. Funciona para arrancar con presupuesto muy ajustado.</li>
+  </ul>
+
+  <!-- SECCIÓN 2: Ruta Paso a Paso -->
+  <h2>2. Hoja de Ruta Secuencial en Vivo (Con el Cliente)</h2>
+
+  <div class="step-card">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <span>Contratación del VPS en Hostinger</span>
+    </div>
+    <p>Con la sesión del cliente abierta en Hostinger:</p>
+    <ol>
+      <li>Hacer clic en <strong>Hosting VPS</strong> ➔ <strong>"Configurar VPS"</strong> (o "Aprovechar descuento").</li>
+      <li>Elegir el plan <strong>KVM 2</strong> (o KVM 1) y el período de facturación (mensual o anual).</li>
+      <li>El cliente ingresa su tarjeta de crédito/débito y completa el pago.</li>
+      <li><strong>Asistente de configuración inicial del VPS:</strong>
+        <ul>
+          <li><strong>Ubicación del servidor:</strong> Elegir Estados Unidos o Brasil (menor latencia para Argentina).</li>
+          <li><strong>Sistema Operativo:</strong> Seleccionar la plantilla oficial <strong>"Docker en Ubuntu 22.04 / 24.04"</strong> (ahorra instalar Docker a mano).</li>
+          <li><strong>Contraseña de Root:</strong> Crear una contraseña segura y guardarla bien.</li>
+        </ul>
+      </li>
+      <li>Al terminar, anotar la <strong>Dirección IP pública del VPS</strong> que figura en el panel (ej. <span class="code-badge">195.35.x.x</span>).</li>
+    </ol>
+  </div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <span>Adquisición y Registro del Dominio</span>
+    </div>
+    <p>En el menú lateral izquierdo de Hostinger:</p>
+    <ol>
+      <li>Ir a <strong>Dominios</strong> ➔ <strong>"Obtener un nuevo dominio"</strong>.</li>
+      <li>Buscar el nombre acordado (ej. <span class="code-badge">atlasgym.com</span> o similar) y comprarlo a nombre del cliente.</li>
+    </ol>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <span>Delegación de DNS a Cloudflare</span>
+    </div>
+    <p>Con la sesión abierta en el panel de Cloudflare:</p>
+    <ol>
+      <li>En el inicio, hacer clic en la tarjeta central <strong>"Add a domain"</strong> (o menú izquierdo <strong>Domains</strong>).</li>
+      <li>Ingresar el nombre exacto del dominio comprado (ej. <span class="code-badge">atlasgym.com</span>) y presionar <strong>Continue</strong>.</li>
+      <li>En la pantalla de selección de planes, bajar al fondo y elegir el plan <strong>Free ($0 / gratis)</strong>.</li>
+      <li>Cloudflare mostrará dos servidores de nombres propios (ej. <span class="code-badge">ada.ns.cloudflare.com</span> y <span class="code-badge">bob.ns.cloudflare.com</span>).</li>
+      <li><strong>Volver a Hostinger:</strong> Ir a <strong>Dominios ➔ Tu dominio ➔ Servidores de nombres (Nameservers)</strong>, hacer clic en "Cambiar servidores de nombres" y pegar los dos de Cloudflare.</li>
+      <li>En 10 minutos, Cloudflare marcará el dominio como <strong>Active</strong> en color verde.</li>
+    </ol>
+  </div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <span>Puesta en Marcha de la App en el Servidor (SSH)</span>
+    </div>
+    <p>En tu computadora abres la consola PowerShell y te conectas al servidor de Hostinger:</p>
+    <div class="terminal-box">
+ssh root@IP_DE_TU_VPS_HOSTINGER
+    </div>
+    <p>Dentro del servidor, ejecutas los siguientes comandos para clonar y encender:</p>
+    <div class="terminal-box">
+# 1. Clonar repositorios de frontend y backend
+git clone https://github.com/Olaiz9/atlasgym_front.git frontend
+git clone https://github.com/Olaiz9/atlasgym_back.git backend
+
+# 2. Crear archivo docker-compose.yml con los 3 servicios (MySQL, Spring Boot, Next.js)
+# 3. Encender los contenedores en segundo plano
+docker compose up -d --build
+    </div>
+    <p>Docker descargará MySQL 8, compilará el backend en el puerto 8080 y el frontend en el puerto 3000.</p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-header">
+      <span class="step-num">5</span>
+      <span>Crear el Túnel Seguro en Cloudflare (Zero-Trust)</span>
+    </div>
+    <p>En el panel web de Cloudflare (sin necesidad de abrir ningún puerto en Hostinger):</p>
+    <ol>
+      <li>En el menú izquierdo ir a <strong>Protect & connect ➔ Zero Trust</strong> (o ingresar a <span class="code-badge">one.dash.cloudflare.com</span>).</li>
+      <li>Ir a <strong>Networks ➔ Tunnels</strong> y hacer clic en <strong>"Add a tunnel"</strong>.</li>
+      <li>Seleccionar tipo <strong>Cloudflared</strong> y nombrarlo <span class="code-badge">atlas-tunnel</span>.</li>
+      <li>Copiar el comando de instalación que Cloudflare te da para Ubuntu y pegarlo en la terminal SSH del VPS.</li>
+      <li>En 10 segundos el túnel se conectará y pasará a estado <strong>HEALTHY (Verde)</strong>.</li>
+      <li>En la pestaña <strong>Public Hostnames</strong> del túnel, configurar las dos rutas:
+        <ul>
+          <li><strong>Ruta 1 (Web):</strong> Dominio: <span class="code-badge">atlasgym.com</span> ➔ Tipo: <span class="code-badge">HTTP</span> ➔ URL: <span class="code-badge">localhost:3000</span></li>
+          <li><strong>Ruta 2 (API):</strong> Dominio: <span class="code-badge">api.atlasgym.com</span> ➔ Tipo: <span class="code-badge">HTTP</span> ➔ URL: <span class="code-badge">localhost:8080</span></li>
+        </ul>
+      </li>
+      <li>Hacer clic en <strong>Save Tunnel</strong>.</li>
+    </ol>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>¡Resultado Final!</strong> En este punto la web queda inmediatamente accesible desde cualquier dispositivo del mundo en <span class="code-badge">https://atlasgym.com</span> con certificado SSL automático, máxima velocidad por la red de Cloudflare y el servidor de Hostinger 100% blindado sin puertos expuestos a internet.
+  </div>
+
+  <!-- SECCIÓN 3: Delegación de Accesos -->
+  <h2>3. Cómo te Pasa el Control el Cliente (Delegación de Cuentas)</h2>
+  <ul>
+    <li><strong>En Hostinger:</strong> El cliente va a su perfil superior derecho ➔ <strong>"Compartir cuenta" (Account Sharing)</strong> ➔ Ingresa tu email con permisos de Administrador Técnico.</li>
+    <li><strong>En Cloudflare:</strong> El cliente va a <strong>Manage Account ➔ Members</strong> ➔ Ingresa tu email y te da rol de <em>Administrator</em>.</li>
+  </ul>
+
+  <div class="footer-note">
+    Documento elaborado por el Equipo de Arquitectura y DevOps · ATLAS Gym Platform · Octubre 2026
+  </div>
+
+</body>
+</html>
