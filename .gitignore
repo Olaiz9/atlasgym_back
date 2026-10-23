@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Clave JWT local: nunca versionar este archivo.
+/config/atlas-local.properties
