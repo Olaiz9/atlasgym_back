@@ -83,21 +83,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        // 1. Asegurar que exista el usuario Administrador aún en producción si la tabla usuarios está vacía
-        if (!usuarioRepository.existsByEmail("admin@atlasgym.com")) {
-            Usuario admin = new Usuario();
-            admin.setEmail("admin@atlasgym.com");
-            admin.setPassword(passwordEncoder.encode("admin123"));
-            admin.setRol(Rol.ADMIN);
-            admin.setActivo(true);
-            admin.setFechaCreacion(LocalDate.now());
-            admin.setCelular("+54 9 11 9876-5432");
-            usuarioRepository.save(admin);
-            log.info("DataInitializer: Creado usuario ADMIN (admin@atlasgym.com / admin123)");
-        }
-
         if (!seedEnabled) {
-            log.info("DataInitializer: atlas.seed.enabled=false (modo producción). Se omiten datos de demostración.");
+            log.info("DataInitializer: se omiten datos de demostración.");
             return;
         }
 
