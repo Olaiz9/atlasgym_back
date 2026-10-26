@@ -120,19 +120,8 @@ public class AlumnoService {
             alumno.setRutinaAlumno(rutina);
         }
 
-        // Generar automáticamente el nombre de usuario y cuenta de acceso para el nuevo inscripto
-        String usernameGenerado = generarUsernameUnico(dto.nombre(), dto.dni(), null);
-        String dniSoloNumeros = dto.dni().replaceAll("\\D", "");
-        String passwordInicial = dniSoloNumeros.isEmpty() ? "alumno123" : dniSoloNumeros;
-
-        Usuario nuevoUsuario = new Usuario();
-        nuevoUsuario.setEmail(usernameGenerado);
-        nuevoUsuario.setPassword(passwordEncoder.encode(passwordInicial));
-        nuevoUsuario.setRol(Rol.ALUMNO);
-        nuevoUsuario.setActivo(alumno.isActivo());
-        nuevoUsuario.setFechaCreacion(LocalDate.now());
-        nuevoUsuario.setCelular(alumno.getCelular());
-        alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
+        // Las credenciales de acceso se crean exclusivamente en Finanzas al registrar el primer pago
+        alumno.setUsuario(null);
 
         Alumno guardado = alumnoRepository.save(alumno);
         return mapToDto(guardado);
@@ -244,11 +233,28 @@ public class AlumnoService {
     public void darDeBaja(Long id) {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
-        alumno.darDeBaja();
-        if (alumno.getUsuario() != null) {
-            alumno.getUsuario().setActivo(false);
+
+        List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
+        boolean tienePagos = pagos != null && !pagos.isEmpty();
+        boolean tieneAsistencias = alumno.getAsistencias() != null && !alumno.getAsistencias().isEmpty();
+        boolean tieneSesiones = alumno.getSesionesEntrenamiento() != null && !alumno.getSesionesEntrenamiento().isEmpty();
+
+        if (!tienePagos && !tieneAsistencias && !tieneSesiones) {
+            Usuario usuario = alumno.getUsuario();
+            alumno.setUsuario(null);
+            alumno.setRutinaAlumno(null);
+            alumno.setPlanAlumno(null);
+            alumnoRepository.delete(alumno);
+            if (usuario != null) {
+                usuarioRepository.delete(usuario);
+            }
+        } else {
+            alumno.darDeBaja();
+            if (alumno.getUsuario() != null) {
+                alumno.getUsuario().setActivo(false);
+            }
+            alumnoRepository.save(alumno);
         }
-        alumnoRepository.save(alumno);
     }
 
     /**
@@ -338,7 +344,7 @@ public class AlumnoService {
 
         String username = alumno.getUsuario() != null && alumno.getUsuario().getEmail() != null
                 ? alumno.getUsuario().getEmail()
-                : generarUsernameBase(alumno.getNombre(), alumno.getDni());
+                : null;
 
         EstadoCuenta estadoCuenta = calcularEstadoCuenta(alumno);
 
