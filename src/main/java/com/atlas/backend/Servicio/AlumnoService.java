@@ -18,6 +18,8 @@ import com.atlas.backend.Repositorio.RutinaRepository;
 import com.atlas.backend.Repositorio.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -33,6 +35,8 @@ public class AlumnoService {
     private final PagoRepository pagoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager em;
 
     public AlumnoService(AlumnoRepository alumnoRepository,
                          PlanRepository planRepository,
@@ -234,26 +238,47 @@ public class AlumnoService {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
 
+        // 1. Preservar pagos como historicos y desvincular del alumno en la tabla pagos
         List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
-        boolean tienePagos = pagos != null && !pagos.isEmpty();
-        boolean tieneAsistencias = alumno.getAsistencias() != null && !alumno.getAsistencias().isEmpty();
-        boolean tieneSesiones = alumno.getSesionesEntrenamiento() != null && !alumno.getSesionesEntrenamiento().isEmpty();
+        if (pagos != null && !pagos.isEmpty()) {
+            for (Pago p : pagos) {
+                if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
+                    p.setAlumnoNombreHistorico(alumno.getNombre());
+                }
+                p.setAlumno(null);
+            }
+            pagoRepository.saveAllAndFlush(pagos);
+        }
 
-        if (!tienePagos && !tieneAsistencias && !tieneSesiones) {
-            Usuario usuario = alumno.getUsuario();
-            alumno.setUsuario(null);
-            alumno.setRutinaAlumno(null);
-            alumno.setPlanAlumno(null);
-            alumnoRepository.delete(alumno);
-            if (usuario != null) {
-                usuarioRepository.delete(usuario);
-            }
-        } else {
-            alumno.darDeBaja();
-            if (alumno.getUsuario() != null) {
-                alumno.getUsuario().setActivo(false);
-            }
-            alumnoRepository.save(alumno);
+        // 2. Eliminar avisos vinculados a este alumno y sus registros de lectura
+        em.createNativeQuery("DELETE FROM aviso_leidos WHERE aviso_id IN (SELECT id FROM avisos WHERE alumno_id = :aid)")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM avisos WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 3. Eliminar asistencias
+        em.createNativeQuery("DELETE FROM asistencias WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 4. Eliminar sesiones de entrenamiento y series
+        em.createNativeQuery("DELETE FROM registros_series WHERE sesion_ejercicio_id IN (SELECT id FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid))")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid)")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM sesiones_entrenamiento WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 5. Eliminar alumno de la tabla alumnos
+        Usuario usuario = alumno.getUsuario();
+        em.createNativeQuery("DELETE FROM alumnos WHERE id_alumno = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 6. Eliminar usuario de acceso si existia
+        if (usuario != null) {
+            em.createNativeQuery("DELETE FROM aviso_leidos WHERE usuario_id = :uid")
+                    .setParameter("uid", usuario.getId()).executeUpdate();
+            em.createNativeQuery("DELETE FROM usuarios WHERE id = :uid")
+                    .setParameter("uid", usuario.getId()).executeUpdate();
         }
     }
 
