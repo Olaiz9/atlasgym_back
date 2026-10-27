@@ -89,6 +89,88 @@ class BajaAlumnoAccesoTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void bajaPorApiConservaHistorialYListadosAunqueSeRepita() throws Exception {
+        Alumno alumno = crearAlumno();
+        Long id = alumno.getIdAlumno();
+        Long usuarioId = alumno.getUsuario().getId();
+        Asistencia asistencia = new Asistencia();
+        asistencia.setFecha(LocalDate.of(2026, 6, 10));
+        alumno.addAsistencias(asistencia);
+        SesionEntrenamiento sesion = new SesionEntrenamiento();
+        sesion.setFecha(LocalDate.of(2026, 6, 10));
+        SesionEjercicio ejercicio = new SesionEjercicio(null, "Sentadilla");
+        ejercicio.addSerie(new RegistroSerie(1, 40.0, 10, true));
+        sesion.addEjercicio(ejercicio);
+        alumno.addSesionEntrenamiento(sesion);
+        em.persist(crearUsuario("admin-prueba", Rol.ADMIN));
+        em.flush();
+        String tokenAlumno = iniciarSesion("socio-prueba");
+        String tokenAdmin = iniciarSesion("admin-prueba");
+        for (int intento = 0; intento < 2; intento++) {
+            mvc.perform(delete("/api/alumnos/{id}", id)
+                    .header("Authorization", "Bearer " + tokenAdmin))
+                    .andExpect(status().isNoContent());
+            em.flush();
+            em.clear();
+        }
+        Alumno conservado = em.find(Alumno.class, id);
+        assertThat(conservado.isActivo()).isFalse();
+        assertThat(em.find(Usuario.class, usuarioId).isActivo()).isFalse();
+        assertThat(conservado.getAsistencias()).singleElement()
+                .satisfies(a -> assertThat(a.getFecha()).isEqualTo(LocalDate.of(2026, 6, 10)));
+        assertThat(conservado.getSesionesEntrenamiento()).singleElement()
+                .satisfies(s -> assertThat(s.getEjercicios()).singleElement()
+                        .satisfies(e -> assertThat(e.getSeries()).singleElement()
+                                .satisfies(serie -> {
+                                    assertThat(serie.getKg()).isEqualTo(40.0);
+                                    assertThat(serie.getReps()).isEqualTo(10);
+                                    assertThat(serie.isCompletada()).isTrue();
+                                })));
+        mvc.perform(get("/api/alumnos").param("soloActivos", "true")
+                .header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+        mvc.perform(get("/api/alumnos/inactivos").header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
+        mvc.perform(get("/api/alumnos/{id}", id).header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.activo").value(false));
+        mvc.perform(get("/api/pagos").param("mes", "2026-06")
+                .header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].monto").value(20000));
+        verificarBloqueo(id, tokenAlumno);
+    }
+
+    @Test
+    void bajaSinCuentaConservaFicha() throws Exception {
+        Alumno alumno = new Alumno();
+        alumno.setNombre("Socio sin cuenta");
+        alumno.setDni("39876543");
+        alumno.setActivo(true);
+        em.persist(alumno);
+        em.persist(crearUsuario("admin-prueba", Rol.ADMIN));
+        em.flush();
+        Long id = alumno.getIdAlumno();
+        String token = iniciarSesion("admin-prueba");
+        mvc.perform(delete("/api/alumnos/{id}", id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        em.flush();
+        em.clear();
+        assertThat(em.find(Alumno.class, id).isActivo()).isFalse();
+        assertThat(em.find(Alumno.class, id).getUsuario()).isNull();
+    }
+
+    @Test
+    void alumnoNoPuedeEjecutarSuPropiaBaja() throws Exception {
+        Alumno alumno = crearAlumno();
+        Long id = alumno.getIdAlumno();
+        String token = iniciarSesion("socio-prueba");
+        mvc.perform(delete("/api/alumnos/{id}", id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        em.flush();
+        em.clear();
+        assertThat(em.find(Alumno.class, id).isActivo()).isTrue();
+    }
     private void verificarBloqueo(Long id, String token) throws Exception {
         mvc.perform(get("/api/alumnos/{id}", id).header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
