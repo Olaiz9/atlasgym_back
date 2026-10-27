@@ -188,7 +188,8 @@ public class PagoService {
                 p.getMetodoPago() != null ? p.getMetodoPago().name() : MetodoPago.EFECTIVO.name(),
                 p.getEstadoPago() != null ? p.getEstadoPago().name() : EstadoPago.PAGADO.name(),
                 p.getPeriodoMes(),
-                p.getComprobante()
+                p.getComprobante(),
+                p.getAlumno() != null ? p.getAlumno().isActivo() : null
         );
     }
 }

@@ -147,6 +147,36 @@ class PagoAccesoTest {
         mvc.perform(delete("/api/pagos/{id}", pagoA)).andExpect(status().isForbidden());
     }
 
+    @Test
+    void finanzasIndicaBajaSinModificarImporteNombreNiEstadoDelPago() throws Exception {
+        mvc.perform(get("/api/pagos/{id}", pagoB).header("Authorization", tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.alumnoActivo").value(true));
+        alumnos.darDeBaja(alumnoB);
+        em.flush();
+        em.clear();
+        for (String ruta : List.of("/api/pagos", "/api/pagos?mes=2026-06",
+                "/api/pagos/alumno/" + alumnoB)) {
+            String respuesta = mvc.perform(get(ruta).header("Authorization", tokenAdmin))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            var pagos = json.readTree(respuesta);
+            boolean encontrado = false;
+            for (var pago : pagos) {
+                if (pago.get("id").asLong() == pagoB) {
+                    encontrado = true;
+                    assertThat(pago.get("alumnoActivo").asBoolean()).isFalse();
+                    assertThat(pago.get("alumnoId").asLong()).isEqualTo(alumnoB);
+                    assertThat(pago.get("alumnoNombreHistorico").asText()).isEqualTo("socio-pagos-b");
+                    assertThat(pago.get("monto").decimalValue()).isEqualByComparingTo("20000");
+                    assertThat(pago.get("estado").asText()).isEqualTo("PAGADO");
+                }
+            }
+            assertThat(encontrado).isTrue();
+        }
+        mvc.perform(get("/api/pagos/{id}", pagoB).header("Authorization", tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.alumnoActivo").value(false));
+        mvc.perform(get("/api/pagos/{id}", pagoA).header("Authorization", tokenAdmin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.alumnoActivo").value(true));
+    }
     private String nuevoPago() throws Exception {
         return json.writeValueAsString(Map.of("alumnoId", alumnoB, "monto", 1000,
                 "metodo", "EFECTIVO", "periodoMes", "2026-07"));

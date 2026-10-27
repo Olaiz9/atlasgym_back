@@ -31,3 +31,12 @@ permisos y alumnos sin cuenta. AlumnoHistorialPersistenceTest comprueba
 las relaciones persistidas y la proteccion frente a borrados JPA.
 
 Estas pruebas usan H2; no sustituyen una prueba del flujo visual con MySQL.
+
+## Indicador de baja en Finanzas
+
+Cada PagoResponseDto incluye alumnoActivo: false indica que el alumno esta
+dado de baja actualmente; true indica activo y null indica que no hay ficha
+vinculada (estado desconocido). No es el estado del alumno al momento del pago.
+El frontend debe mostrar 'Alumno dado de baja' cuando sea false y conservar
+el pago en listados, filtros por mes y totales. El estado PAGADO/PENDIENTE
+es independiente de la baja. Usar alumnoNombreHistorico para el nombre.
