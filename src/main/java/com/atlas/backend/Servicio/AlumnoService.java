@@ -238,6 +238,35 @@ public class AlumnoService {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
 
+        // Paso 1: Si está activo, se da de baja lógica y pasa a Inactivos
+        if (alumno.isActivo()) {
+            alumno.setActivo(false);
+            if (alumno.getUsuario() != null) {
+                alumno.getUsuario().setActivo(false);
+                usuarioRepository.save(alumno.getUsuario());
+            }
+            List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
+            if (pagos != null && !pagos.isEmpty()) {
+                for (Pago p : pagos) {
+                    if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
+                        p.setAlumnoNombreHistorico(alumno.getNombre());
+                    }
+                }
+                pagoRepository.saveAll(pagos);
+            }
+            alumnoRepository.save(alumno);
+            return;
+        }
+
+        // Paso 2: Si ya estaba inactivo, se elimina definitivamente preservando pagos históricos
+        eliminarDefinitivamente(id);
+    }
+
+    @Transactional
+    public void eliminarDefinitivamente(Long id) {
+        Alumno alumno = alumnoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
+
         // 1. Preservar pagos como historicos y desvincular del alumno en la tabla pagos
         List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
         if (pagos != null && !pagos.isEmpty()) {
