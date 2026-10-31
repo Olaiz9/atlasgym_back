@@ -1,0 +1,85 @@
+# ============================================================================
+# ATLAS Gym - Orquestación Productiva Completa (MySQL 8 + Backend + Frontend)
+# Uso:
+#   1. Copiar .env.example a .env y completar todas las claves reales.
+#   2. Ejecutar: docker compose up -d --build
+# ============================================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: atlas-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=-03:00
+    environment:
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-atlas_gym}
+      MYSQL_USER: ${DB_USER:?Definir DB_USER en .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Definir MYSQL_ROOT_PASSWORD en .env}
+    # Solo accesible desde localhost del servidor para backups; nunca expuesto a Internet público
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-3307}:3306"
+    volumes:
+      - atlas_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atlas-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-atlas_gym}?serverTimezone=America/Argentina/Buenos_Aires&characterEncoding=UTF-8
+      DB_USER: ${DB_USER:?Definir DB_USER en .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
+      ATLAS_JWT_SECRET: ${ATLAS_JWT_SECRET:?Definir ATLAS_JWT_SECRET (min 64 hex / 32 bytes) en .env}
+      ATLAS_JWT_EXPIRATION: ${ATLAS_JWT_EXPIRATION:-86400000}
+      ATLAS_ADMIN_EMAIL: ${ATLAS_ADMIN_EMAIL:?Definir ATLAS_ADMIN_EMAIL en .env}
+      ATLAS_ADMIN_PASSWORD: ${ATLAS_ADMIN_PASSWORD:?Definir ATLAS_ADMIN_PASSWORD en .env}
+      ATLAS_ADMIN_NOMBRE: ${ATLAS_ADMIN_NOMBRE:-}
+      ATLAS_ADMIN2_EMAIL: ${ATLAS_ADMIN2_EMAIL:-}
+      ATLAS_ADMIN2_PASSWORD: ${ATLAS_ADMIN2_PASSWORD:-}
+      ATLAS_ADMIN2_NOMBRE: ${ATLAS_ADMIN2_NOMBRE:-}
+      ATLAS_CORS_ALLOWED_ORIGIN: ${ATLAS_CORS_ALLOWED_ORIGIN:-http://localhost:3000}
+      ATLAS_TOTEM_SECRET: ${ATLAS_TOTEM_SECRET:-}
+      ATLAS_SEED_ENABLED: "false"
+    # Accesible localmente en el host y por la red interna de Docker (frontend -> http://backend:8080)
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ${ATLAS_FRONT_DIR:-../atlasgym_front}
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/backend-api}
+    container_name: atlas-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8080}
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+
+volumes:
+  atlas_mysql_data:

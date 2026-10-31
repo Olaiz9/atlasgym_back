@@ -50,6 +50,24 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${atlas.seed.enabled:true}")
     private boolean seedEnabled;
 
+    @Value("${atlas.admin.email:admin@atlasgym.com}")
+    private String adminEmail;
+
+    @Value("${atlas.admin.password:admin123}")
+    private String adminPassword;
+
+    @Value("${atlas.admin.nombre:}")
+    private String adminNombre;
+
+    @Value("${atlas.admin2.email:}")
+    private String admin2Email;
+
+    @Value("${atlas.admin2.password:}")
+    private String admin2Password;
+
+    @Value("${atlas.admin2.nombre:}")
+    private String admin2Nombre;
+
     private final UsuarioRepository usuarioRepository;
     private final AlumnoRepository alumnoRepository;
     private final PlanRepository planRepository;
@@ -83,17 +101,45 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        // 1. Asegurar que exista el usuario Administrador aún en producción si la tabla usuarios está vacía
-        if (!usuarioRepository.existsByEmail("admin@atlasgym.com")) {
+        // 1. Asegurar que exista un usuario Administrador inicial parametrizado
+        String emailAdmin = (adminEmail != null && !adminEmail.isBlank()) ? adminEmail.trim() : "admin@atlasgym.com";
+        String claveAdmin = (adminPassword != null && !adminPassword.isBlank()) ? adminPassword.trim() : "admin123";
+
+        boolean existeEmailAdmin = usuarioRepository.findByEmailIgnoreCase(emailAdmin).isPresent();
+        boolean existeAlgunAdminActivo = !seedEnabled && usuarioRepository.findAll().stream()
+                .anyMatch(u -> u.getRol() == Rol.ADMIN && u.isActivo());
+
+        if (!existeEmailAdmin && !existeAlgunAdminActivo) {
             Usuario admin = new Usuario();
-            admin.setEmail("admin@atlasgym.com");
-            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setEmail(emailAdmin);
+            admin.setPassword(passwordEncoder.encode(claveAdmin));
             admin.setRol(Rol.ADMIN);
             admin.setActivo(true);
             admin.setFechaCreacion(LocalDate.now());
             admin.setCelular("+54 9 11 9876-5432");
+            if (adminNombre != null && !adminNombre.isBlank()) {
+                admin.setNombreMostrar(adminNombre.trim());
+            }
             usuarioRepository.save(admin);
-            log.info("DataInitializer: Creado usuario ADMIN (admin@atlasgym.com / admin123)");
+            log.info("DataInitializer: Creado usuario ADMIN inicial ({})", emailAdmin);
+        }
+
+        // 1b. Segundo dueño nominal opcional (hermano co-titular del gimnasio para trazabilidad de caja)
+        if (admin2Email != null && !admin2Email.isBlank() && admin2Password != null && !admin2Password.isBlank()) {
+            String emailAdmin2 = admin2Email.trim();
+            if (usuarioRepository.findByEmailIgnoreCase(emailAdmin2).isEmpty()) {
+                Usuario admin2 = new Usuario();
+                admin2.setEmail(emailAdmin2);
+                admin2.setPassword(passwordEncoder.encode(admin2Password.trim()));
+                admin2.setRol(Rol.ADMIN);
+                admin2.setActivo(true);
+                admin2.setFechaCreacion(LocalDate.now());
+                if (admin2Nombre != null && !admin2Nombre.isBlank()) {
+                    admin2.setNombreMostrar(admin2Nombre.trim());
+                }
+                usuarioRepository.save(admin2);
+                log.info("DataInitializer: Creado segundo usuario ADMIN nominal ({})", emailAdmin2);
+            }
         }
 
         if (!seedEnabled) {

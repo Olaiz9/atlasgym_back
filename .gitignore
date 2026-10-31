@@ -4,6 +4,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Secretos y Backups Locales ###
+.env
+.env*.local
+!.env.example
+backups/
+
 ### STS ###
 .apt_generated
 .classpath

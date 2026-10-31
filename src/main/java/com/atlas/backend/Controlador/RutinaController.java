@@ -45,8 +45,22 @@ public class RutinaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RutinaResponseDto> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(rutinaService.buscarPorId(id));
+    @PreAuthorize("hasAnyRole('ADMIN', 'ALUMNO')")
+    public ResponseEntity<RutinaResponseDto> buscarPorId(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        RutinaResponseDto rutina = rutinaService.buscarPorId(id);
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (!esAdmin && authentication != null && !rutina.esGenerica()) {
+            Long miAlumnoId = authService.resolverAlumnoIdPorEmail(authentication.getName());
+            RutinaResponseDto miRutina = rutinaService.obtenerRutinaDeAlumno(miAlumnoId);
+            if (miRutina == null || !id.equals(miRutina.id())) {
+                throw new AccessDeniedException("Solo puede consultar su propia rutina o plantillas genéricas.");
+            }
+        }
+        return ResponseEntity.ok(rutina);
     }
 
     @GetMapping("/mis-rutinas")

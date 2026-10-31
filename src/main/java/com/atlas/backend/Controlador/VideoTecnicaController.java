@@ -3,6 +3,7 @@ package com.atlas.backend.Controlador;
 import com.atlas.backend.Dto.VideoTecnicaDto;
 import com.atlas.backend.Modelo.GrupoMuscular;
 import com.atlas.backend.Servicio.VideoTecnicaService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,7 +50,7 @@ public class VideoTecnicaController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<VideoTecnicaDto> crear(@RequestBody VideoTecnicaDto dto) {
+    public ResponseEntity<VideoTecnicaDto> crear(@Valid @RequestBody VideoTecnicaDto dto) {
         VideoTecnicaDto creado = videoTecnicaService.crear(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }

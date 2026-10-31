@@ -15,6 +15,24 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
 
     Optional<Alumno> findByDni(String dni);
 
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.dni = :dni")
+    Optional<Alumno> findByDniWithRelaciones(@Param("dni") String dni);
+
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.idAlumno = :id")
+    Optional<Alumno> findByIdWithRelaciones(@Param("id") Long id);
+
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno")
+    List<Alumno> findAllWithRelaciones();
+
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.activo = true")
+    List<Alumno> findActivosWithRelaciones();
+
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.activo = false")
+    List<Alumno> findInactivosWithRelaciones();
+
+    @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE LOWER(a.nombre) LIKE LOWER(CONCAT('%', :nombre, '%'))")
+    List<Alumno> findByNombreContainingIgnoreCaseWithRelaciones(@Param("nombre") String nombre);
+
     Optional<Alumno> findByEmailIgnoreCase(String email);
 
     List<Alumno> findByActivoTrue();

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe Técnico Exhaustivo de Descubrimiento, Remediación e Ingeniería Productiva - ATLAS Gym</title>
+<style>
+  @page {
+    size: A4;
+    margin: 11.5mm 13.5mm 12mm 13.5mm;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.41;
+    font-size: 8.9pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Cabecera Principal */
+  .header-banner {
+    border-bottom: 3.5px solid #059669;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    border-radius: 9999px;
+    font-size: 7.3pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .status-stamp {
+    text-align: right;
+    background-color: #0f172a;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border-left: 4px solid #10b981;
+    min-width: 178px;
+  }
+
+  .status-stamp .stamp-label {
+    font-size: 6.7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #94a3b8;
+    display: block;
+  }
+
+  .status-stamp .stamp-val {
+    font-size: 9.5pt;
+    font-weight: 800;
+    color: #34d399;
+    display: block;
+    margin-top: 2px;
+  }
+
+  h1 {
+    font-size: 17pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 6px 0 3px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .subtitle {
+    font-size: 9.5pt;
+    color: #475569;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  /* Grilla de Metadatos */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 11px;
+    break-inside: avoid;
+  }
+
+  .meta-item strong {
+    display: block;
+    font-size: 6.7pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .meta-item span {
+    font-size: 8.3pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .meta-item span.ok {
+    color: #059669;
+  }
+
+  /* Títulos de Sección */
+  h2 {
+    font-size: 11.4pt;
+    font-weight: 800;
+    color: #0f172a;
+    background: linear-gradient(90deg, #f1f5f9 0%, #ffffff 100%);
+    border-left: 4.5px solid #059669;
+    padding: 5px 10px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    break-after: avoid;
+  }
+
+  h2 code {
+    font-size: 9.8pt;
+    background-color: #e2e8f0;
+  }
+
+  h2.discovery-h2 {
+    border-left-color: #dc2626;
+    background: linear-gradient(90deg, #fef2f2 0%, #ffffff 100%);
+  }
+
+  h3 {
+    font-size: 9.4pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 6px 0 3.5px 0;
+    break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 4.5px 0;
+    color: #334155;
+  }
+
+  ul, ol {
+    margin: 2.5px 0 5px 0;
+    padding-left: 17px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  /* Callouts */
+  .callout {
+    padding: 7.5px 11px;
+    border-radius: 7px;
+    margin: 6px 0 8px 0;
+    font-size: 8.4pt;
+    break-inside: avoid;
+  }
+
+  .callout-dark {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    border-left: 4px solid #10b981;
+  }
+
+  .callout-dark strong {
+    color: #6ee7b7;
+  }
+
+  .callout-discovery {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    color: #7f1d1d;
+  }
+
+  .callout-solution {
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-left: 4px solid #059669;
+    color: #064e3b;
+  }
+
+  /* Comparativa ANTES vs AHORA */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin: 7px 0 9px 0;
+    break-inside: avoid;
+  }
+
+  .compare-box {
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 8.3pt;
+  }
+
+  .compare-before {
+    background-color: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-top: 3px solid #e11d48;
+  }
+
+  .compare-after {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-top: 3px solid #16a34a;
+  }
+
+  .compare-header {
+    font-size: 7.4pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .compare-before .compare-header {
+    color: #be123c;
+  }
+
+  .compare-after .compare-header {
+    color: #15803d;
+  }
+
+  /* Tarjetas Técnicas */
+  .tech-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    padding: 8px 11px;
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+
+  .tech-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 4px;
+    margin-bottom: 5px;
+  }
+
+  .tech-card-title {
+    font-size: 9.4pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-size: 6.7pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .pill-green {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+  }
+
+  .pill-blue {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+  }
+
+  /* Código inline y bloques de código */
+  code {
+    font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+    font-size: 7.7pt;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+  }
+
+  pre {
+    font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+    font-size: 7.5pt;
+    line-height: 1.38;
+    background-color: #0f172a;
+    color: #e2e8f0;
+    padding: 7px 10px;
+    border-radius: 6px;
+    margin: 5px 0 7px 0;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-left: 3.5px solid #38bdf8;
+    break-inside: avoid;
+  }
+
+  pre .kw { color: #7dd3fc; font-weight: 700; }
+  pre .cm { color: #94a3b8; font-style: italic; }
+  pre .ok { color: #6ee7b7; }
+
+  /* Tablas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 5px 0 8px 0;
+    font-size: 7.7pt;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 4.5px 6.5px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 4px 6.5px;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  /* KPI Grid de Verificación */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 8px 0 10px 0;
+    break-inside: avoid;
+  }
+
+  .kpi-box {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-top: 3px solid #059669;
+    border-radius: 7px;
+    padding: 7px 9px;
+    text-align: center;
+  }
+
+  .kpi-num {
+    font-size: 13.5pt;
+    font-weight: 900;
+    color: #059669;
+    display: block;
+    line-height: 1.15;
+  }
+
+  .kpi-label {
+    font-size: 7pt;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+    display: block;
+  }
+
+  .footer-note {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1.5px solid #cbd5e1;
+    font-size: 7.5pt;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+    break-inside: avoid;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ==================== CABECERA EJECUTIVA ==================== -->
+  <div class="header-banner">
+    <div>
+      <span class="badge-tag">Dossier de Ingeniería · Auditoría Forense + Remediación Fullstack</span>
+      <h1>ATLAS GYM: DESCUBRIMIENTO Y REMEDIACIÓN INTEGRAL</h1>
+      <p class="subtitle">Diagnóstico Red-Team, Arquitectura Transaccional ANTES vs. AHORA, Decisiones Técnicas y Puesta en Producción</p>
+    </div>
+    <div class="status-stamp">
+      <span class="stamp-label">Estado de Entrega</span>
+      <span class="stamp-val">PRODUCCIÓN READY</span>
+      <span class="stamp-label" style="margin-top:3px;">34/34 Java · 134/134 Vitest · Build OK</span>
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Stack Backend (ramaLucas)</strong>
+      <span>Spring Boot 3.4.3 · Java 17 · Flyway · MySQL 8</span>
+    </div>
+    <div class="meta-item">
+      <strong>Stack Frontend (ramaLucas)</strong>
+      <span>Next.js 16.3 · React 19 · TS 5.7 · Vitest 5</span>
+    </div>
+    <div class="meta-item">
+      <strong>Topología Real del Cliente</strong>
+      <span>2 Dueños (Hermanos) + 1 Tablet Tótem</span>
+    </div>
+    <div class="meta-item">
+      <strong>Veredicto Técnico Actual</strong>
+      <span class="ok">100% Remediado y Verificado</span>
+    </div>
+  </div>
+
+  <div class="callout callout-dark">
+    <strong>Contexto de Partida (Por qué NO hizo falta empezar de cero, pero SÍ operar a corazón abierto):</strong>
+    Al someter ambos repositorios a una auditoría escéptica de nivel <em>Red-Team</em> previo a la entrega a un cliente real, se comprobó que el modelo de dominio, la estética de interfaz y la cobertura funcional base eran sólidos, pero el sistema escondía <strong>8 fallas estructurales críticas</strong> en la capa de sincronización, cálculo contable, consultas JPA, seguridad de endpoints y despliegue. Con las reglas de negocio confirmadas con el cliente (solo dos hermanos operan la administración sin empleados externos, ventana de pago del 1 al 10 y alerta en Asistencias por exceso de días semanales del plan), se ejecutó una <strong>reingeniería quirúrgica en 5 bloques</strong> sin descartar el trabajo previo.
+  </div>
+
+  <!-- ==================== FASE 0: EL DESCUBRIMIENTO ==================== -->
+  <h2 class="discovery-h2">1. Fase de Descubrimiento: Las 8 Bombas de Tiempo Detectadas en la Auditoría</h2>
+  <p>Antes de escribir una sola línea de código correctivo, se trazó la radiografía forense extremo a extremo entre <code>atlasgym_front</code> y <code>atlasgym_back</code>. A continuación se resumen los hallazgos exactos que habrían provocado pérdida de datos o inconsistencias contables en la primera semana de operación real:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 4%;">#</th>
+        <th style="width: 24%;">Hallazgo Crítico</th>
+        <th style="width: 36%;">Evidencia Técnica en Código Original (ANTES)</th>
+        <th style="width: 36%;">Impacto Real en el Gimnasio</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>H1</strong></td>
+        <td><strong>Esquizofrenia en Estados de Cuota y Sin Multi-Mes</strong></td>
+        <td><code>AlumnoService.calcularEstadoCuenta()</code>, <code>PagoService</code> y <code>lib/date-utils.ts</code> usaban umbrales distintos. Además, <code>Pago</code> no tenía <code>cantidad_meses</code>: todo pago cubría solo 1 mes (<code>periodo_mes</code>).</td>
+        <td>Un socio figuraba <code>AL_DIA</code> en una vista y <code>PENDIENTE</code>/<code>MOROSO</code> en otra. Si pagaba una promo trimestral o semestral, al mes siguiente el sistema lo marcaba deudor.</td>
+      </tr>
+      <tr>
+        <td><strong>H2</strong></td>
+        <td><strong>Tormenta de Queries N+1 en JPA/Hibernate</strong></td>
+        <td><code>AlumnoService.listarTodos()</code> hacía <code>alumnoRepository.findAll()</code> y por cada socio disparaba queries lazy a <code>usuario</code>, <code>plan</code>, <code>rutina</code> y <code>pagoRepository.findByAlumnoId...</code>.</td>
+        <td>Con 500 socios activos, un solo <code>GET /api/alumnos</code> ejecutaba <strong>más de 1.000 consultas SQL</strong> seriadas contra MySQL, degradando el dashboard y el celular de los dueños.</td>
+      </tr>
+      <tr>
+        <td><strong>H3</strong></td>
+        <td><strong>Cupo Semanal Decorativo y Tótem Local-First Roto</strong></td>
+        <td><code>Plan.diaPorSemana</code> (ej. <code>"3 días"</code>) era texto muerto no evaluado al fichar. En <code>app/totem/page.tsx</code> se llamaba primero al store local de la tablet y recién después a la API, con rate-limit de <code>30 req/min</code>.</td>
+        <td>Socios con plan de 2 o 3 días entrenaban 6 días sin ninguna alerta en recepción. En hora pico, el ingreso #31 recibía HTTP <code>429</code> y veía falsamente <em>"No identificamos tu DNI"</em>.</td>
+      </tr>
+      <tr>
+        <td><strong>H4</strong></td>
+        <td><strong>"Doble Verdad", Mocks Zombies y <code>.catch(() =&gt; {})</code></strong></td>
+        <td><code>hidratarDesdeBackend()</code> hacía <code>if (dto.length &gt; 0)</code>: si MySQL devolvía <code>[]</code>, conservaba <code>ALUMNOS_MOCK</code>. Las mutaciones en <code>lib/store.tsx</code> tenían <code>.catch(() =&gt; {})</code> silenciosos sin <em>rollback</em>.</td>
+        <td>Si el Hermano 1 cargaba un cobro con token vencido o corte de red, su navegador mostraba "éxito" en <code>localStorage</code>, pero MySQL nunca se enteraba y el Hermano 2 veía otra caja.</td>
+      </tr>
+      <tr>
+        <td><strong>H5</strong></td>
+        <td><strong>Brechas de Seguridad REST (IDOR, XSS, Fuerza Bruta)</strong></td>
+        <td><code>/api/auth/login</code> sin límite de intentos; <code>PUT /api/auth/perfil</code> cambiaba clave sin pedir <code>passwordActual</code> y aceptaba <code>javascript:</code> en <code>fotoUrl</code>; <code>GET /api/rutinas/{id}</code> permitía IDOR entre socios; <code>DataInitializer</code> logueaba <code>admin123</code>.</td>
+        <td>Exposición a ataques de diccionario, robo de sesión abierta para cambio de contraseña, lectura cruzada de rutinas personalizadas y credenciales por defecto en producción.</td>
+      </tr>
+      <tr>
+        <td><strong>H6</strong></td>
+        <td><strong>Esquema Sin Gobierno (<code>ddl-auto=update</code>)</strong></td>
+        <td>Sin Flyway ni SQL base versionado. Hibernate alteraba tablas en caliente al iniciar sobre la base productiva.</td>
+        <td>Cualquier refactor de entidad JPA en futuras actualizaciones podía corromper columnas, omitir índices críticos o fallar a mitad de arranque sin control transaccional.</td>
+      </tr>
+      <tr>
+        <td><strong>H7</strong></td>
+        <td><strong>Desfasaje Horario UTC vs. Argentina (21:00 hs)</strong></td>
+        <td>Uso de fechas sin fijar <code>TZ=America/Argentina/Buenos_Aires</code> en JVM/MySQL/Docker y riesgos de conversión ISO UTC.</td>
+        <td>A las 21:00 hs de Argentina (00:00 UTC), el servidor saltaba al día siguiente: el día 10 a las 21:15 hs marcaba a todos <code>PENDIENTE</code> antes de tiempo y fechaba mal las asistencias nocturnas.</td>
+      </tr>
+      <tr>
+        <td><strong>H8</strong></td>
+        <td><strong>Sin Empaquetado Docker ni Backups Consistentes</strong></td>
+        <td>Ausencia de <code>Dockerfile</code>, <code>docker-compose.yml</code>, <code>.env.example</code>, exclusión de <code>.env</code> en <code>.gitignore</code>, regla LF en <code>.gitattributes</code> y scripts de <code>mysqldump</code>.</td>
+        <td>Si fallaba el disco de la PC/VPS del gimnasio, se perdía toda la contabilidad histórica, fichas de socios y pagos sin respaldo recuperable.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ==================== BLOQUE 1 ==================== -->
+  <h2>2. Bloque 1: Máquina de Estados de Cuotas (Opción A), Multi-Mes y Fin del N+1</h2>
+
+  <div class="callout callout-discovery">
+    <strong>Descubrimiento Técnico Detallado:</strong> En el diseño original, cada registro en la tabla <code>pagos</code> representaba únicamente un string <code>periodo_mes</code> (formato <code>YYYY-MM</code>). No existía aritmética de cobertura plurimensual. Peor aún, para calcular el campo derivado <code>estadoCuenta</code> de cada socio al listar el padrón, el backend ejecutaba consultas individuales perezosas (<em>Lazy Loading</em>) por cada fila de <code>alumnos</code>, mientras que el frontend recalculaba estados con reglas distintas en <code>lib/date-utils.ts</code>.
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box compare-before">
+      <span class="compare-header">CÓMO ANDABA ANTES</span>
+      <ul>
+        <li>Criterios contradictorios entre backend y frontend sobre cuándo un socio pasaba a <code>PENDIENTE</code>, <code>MOROSO</code> o <code>INACTIVO</code>.</li>
+        <li>Imposible registrar promociones de 2, 3, 6 o 12 meses adelantados sin cargar múltiples pagos ficticios mes a mes.</li>
+        <li><code>GET /api/alumnos</code> disparaba <code>1 + N</code> queries a <code>pagos</code> + <code>3N</code> accesos a relaciones -&gt; <strong>&gt;1.000 queries SQL</strong> con 500 socios.</li>
+      </ul>
+    </div>
+    <div class="compare-box compare-after">
+      <span class="compare-header">CÓMO ANDA AHORA</span>
+      <ul>
+        <li>Máquina de estados determinística 100% isomórfica entre Java (<code>AlumnoService</code>) y TypeScript (<code>date-utils.ts</code>) validada con tests cruzados.</li>
+        <li>Columna <code>cantidad_meses</code> nativa: un pago en <code>2026-10</code> con <code>cantidadMeses = 3</code> cubre automáticamente hasta <code>2026-12</code> inclusive.</li>
+        <li>Complejidad SQL constante <strong>O(1): exactamente 2 consultas SQL</strong> totales sin importar el tamaño del padrón de socios.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 1.1 — Álgebra Exacta de <code>YearMonth</code> para la Máquina de Estados (Opción A)</span>
+      <span class="pill pill-green">Isomorfismo Java + TS</span>
+    </div>
+    <p>Se formalizó la función pura de estado sobre el calendario local del gimnasio (<code>hoy</code>, <code>diaDelMes = hoy.getDayOfMonth()</code>, <code>mesActual = YearMonth.from(hoy)</code>). Para cada pago con <code>estadoPago == PAGADO</code>, se toma su período base <code>ymBase</code> (desde <code>periodoMes</code> o <code>YearMonth.from(fecha)</code>) y su cobertura <code>n = Math.max(1, cantidadMeses)</code>, obteniendo el último mes cubierto <code>ymFin = ymBase.plusMonths(n - 1)</code>. Sea <code>maxCubierto</code> el máximo <code>ymFin</code> del socio y <code>diffMeses = ChronoUnit.MONTHS.between(maxCubierto, mesActual)</code>:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Condición Evaluada (Orden de Precedencia)</th>
+          <th>Fórmula Matemática</th>
+          <th>Estado Resultante</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1. Baja administrativa explícita</td>
+          <td><code>!alumno.isActivo()</code></td>
+          <td><code>INACTIVO</code></td>
+        </tr>
+        <tr>
+          <td>2. Mes actual o meses futuros ya pagados (incluye promos multi-mes)</td>
+          <td><code>diffMeses &lt;= 0</code></td>
+          <td><code>AL_DIA</code></td>
+        </tr>
+        <tr>
+          <td>3. Cubierto hasta el mes inmediato anterior, dentro de ventana del 1 al 10</td>
+          <td><code>diffMeses == 1 &amp;&amp; diaDelMes &lt;= 10</code></td>
+          <td><code>AL_DIA</code></td>
+        </tr>
+        <tr>
+          <td>4. Cubierto hasta el mes inmediato anterior, vencida la ventana (día 11 al 31)</td>
+          <td><code>diffMeses == 1 &amp;&amp; diaDelMes &gt;= 11</code></td>
+          <td><code>PENDIENTE</code></td>
+        </tr>
+        <tr>
+          <td>5. Dejó pasar todo el mes sin abonar (ya cursando el mes subsiguiente)</td>
+          <td><code>diffMeses == 2</code></td>
+          <td><code>MOROSO</code></td>
+        </tr>
+        <tr>
+          <td>6. Abandono prolongado sin cobertura vigente</td>
+          <td><code>diffMeses &gt;= 3 &amp;&amp; diasDesdeUltimoMovimiento &gt; 60</code></td>
+          <td><code>INACTIVO</code></td>
+        </tr>
+        <tr>
+          <td>7. Socio recién inscripto (<code>0 pagos PAGADOS</code>) según antigüedad desde <code>fechaAlta</code></td>
+          <td><code>mesesAlta &lt;= 0 -&gt; PENDIENTE</code> · <code>== 1 -&gt; MOROSO</code> · <code>&gt;= 2 o &gt;60d -&gt; INACTIVO</code></td>
+          <td>Según antigüedad</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 1.2 — Erradicación del N+1 mediante <code>JOIN FETCH</code> + Batch Hydration</span>
+      <span class="pill pill-blue">JPA / Hibernate 6</span>
+    </div>
+    <p>En <code>AlumnoRepository.java</code> y <code>PagoRepository.java</code> se reemplazó la navegación perezosa fila por fila por dos consultas precargadas y ensambladas en memoria en tiempo lineal <code>O(N)</code>:</p>
+<pre><span class="cm">// Query 1 (AlumnoRepository): trae todos los socios + usuario + plan + rutina en un único SELECT con LEFT JOIN FETCH</span>
+<span class="kw">@Query</span>(<span class="ok">"SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno"</span>)
+List&lt;Alumno&gt; findAllWithRelations();
+
+<span class="cm">// Query 2 (PagoRepository): trae todos los pagos de la colección de IDs en un solo SELECT WHERE alumno_id IN (...)</span>
+<span class="kw">@Query</span>(<span class="ok">"SELECT p FROM Pago p LEFT JOIN FETCH p.planPago WHERE p.alumno.idAlumno IN :alumnoIds ORDER BY p.fecha DESC"</span>)
+List&lt;Pago&gt; findByAlumnoIdsOrderByFechaDesc(<span class="kw">@Param</span>(<span class="ok">"alumnoIds"</span>) Collection&lt;Long&gt; alumnoIds);</pre>
+    <p>Adicionalmente, en <code>app/finanzas/page.tsx</code> se incorporó el selector de duración (<code>1, 2, 3, 6, 12 meses</code>) que autocalcula el monto sugerido multiplicando el valor del plan, renderiza badges <code>×N meses</code> en la tabla contable, proyecta el mes exacto de vencimiento en <code>VistaCuotasAlumno</code> e incluye la columna en la exportación CSV.</p>
+  </div>
+
+  <!-- ==================== BLOQUE 2 ==================== -->
+  <h2>3. Bloque 2: Cupo Semanal de Días por Plan, Tótem MySQL-First y Monitor en Vivo</h2>
+
+  <div class="callout callout-discovery">
+    <strong>Descubrimiento Técnico Detallado:</strong> El cliente pidió explícitamente: <em>"que el tótem no trabe la puerta, pero que le avise al módulo de asistencia si hay alguien que ya vino los días que le corresponde, igual que avisa si debe cuota"</em>. Al auditar el código encontramos dos problemas graves: (1) ningún servicio parseaba cuántos días semanales permitía el plan ni contaba días distintos asistidos en la semana; (2) <code>app/totem/page.tsx</code> ejecutaba primero la mutación sobre <code>localStorage</code> de la tablet y ocultaba errores HTTP (como <code>429 Too Many Requests</code> al superar 30 ingresos/min o <code>403 Forbidden</code>) detrás del mensaje genérico <em>"No identificamos tu DNI"</em>.
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box compare-before">
+      <span class="compare-header">CÓMO ANDABA ANTES</span>
+      <ul>
+        <li>El campo <code>diaPorSemana</code> (ej. <code>"3 días por semana"</code>) era meramente informativo: 0 control sobre asistencias semanales.</li>
+        <li>Si un socio fichaba en la tablet del Tótem, el celular/notebook de los dueños en <code>/asistencias</code> no se enteraba en vivo sin recargar manualmente.</li>
+        <li>Rate-limit de 30 consultas/minuto en <code>AsistenciaController</code> colapsaba en el cambio de turno de las 18:00–20:00 hs.</li>
+      </ul>
+    </div>
+    <div class="compare-box compare-after">
+      <span class="compare-header">CÓMO ANDA AHORA</span>
+      <ul>
+        <li>Conteo exacto de <strong>días distintos asistidos en la semana ISO (Lunes a Domingo)</strong> con deduplicación automática de doble turno diario.</li>
+        <li>Tótem <strong>MySQL-First</strong> con soporte de <code>120 req/min</code>, purga de memoria IP, secreto opcional <code>X-Totem-Secret</code> y fallback offline limpio.</li>
+        <li><code>/asistencias</code> hace <em>polling</em> inteligente cada 5 s y despliega banner naranja prominente, tarjetas resaltadas y filtro <code>Excedidos plan</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 2.1 — Conteo Semanal Lunes–Domingo con Deduplicación de Doble Ingreso</span>
+      <span class="pill pill-green">Backend + Frontend</span>
+    </div>
+    <p>Se implementó el extractor <code>extraerLimiteDiasSemana(String diaPorSemana)</code> tanto en <code>AsistenciaService.java</code> como en <code>lib/asistencia-utils.ts</code>. Si el texto contiene términos libres (<code>"libre"</code>, <code>"ilimitado"</code>, <code>"full"</code>, <code>"todos"</code>) retorna <code>null</code> (sin tope); si matchea <code>(\d+)\s*d[ií]as?</code> extrae el entero <code>limite</code>. Para cualquier asistencia en una fecha <code>F</code>:</p>
+    <ul>
+      <li>Se calcula el lunes de esa semana ISO: <code>inicioSemana = F.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))</code> (y en TypeScript con aritmética local <code>offsetLunes = (fecha.getDay() + 6) % 7</code> sin pasar por <code>toISOString()</code> para jamás desplazar el día por UTC).</li>
+      <li>En <code>AsistenciaRepository.java</code> se consulta <code>SELECT DISTINCT a.fecha FROM Asistencia a WHERE a.alumno.idAlumno = :id AND a.fecha BETWEEN :lunes AND :hasta</code> (y su variante batch <code>findByAlumnoIdsAndRango</code> para listados históricos sin N+1).</li>
+      <li>Si un socio con plan de <strong>3 días</strong> ficha el lunes a la mañana y vuelve el lunes a la tarde (o tipea dos veces su DNI en el Tótem), ambos registros cuentan como <strong>1 solo día asistido</strong>. Al fichar un 4to día distinto entre lunes y domingo, el DTO expone <code>asistenciasSemana = 4</code>, <code>limiteDiasSemana = 3</code>, <code>excedeLimiteSemanal = true</code>.</li>
+    </ul>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 2.2 — Flujo MySQL-First en <code>/totem</code> y Telemetría Reactiva en <code>/asistencias</code></span>
+      <span class="pill pill-blue">Tiempo Real Multi-Dispositivo</span>
+    </div>
+    <ul>
+      <li><strong>Inversión de prioridad en <code>app/totem/page.tsx</code>:</strong> Cuando <code>isApiRuntimeEnabled()</code> está activo, invoca primero <code>await apiCheckInTotem(valorDni)</code> enviando <code>X-Totem-Secret</code> (si se configuró <code>NEXT_PUBLIC_TOTEM_SECRET</code>). Si el backend responde HTTP <code>403</code> o <code>429</code>, exhibe el motivo real de seguridad/límite en pantalla en vez de mentir diciendo que el DNI no existe. Solo si <code>esErrorDeRed(err)</code> detecta caída física de red, opera en contingencia local con <code>omitirApiRemota: true</code>.</li>
+      <li><strong>Proxy &amp; Rate-Limit en <code>AsistenciaController.java</code>:</strong> Se activó <code>server.forward-headers-strategy=framework</code> para leer la IP real detrás de Nginx/reverse-proxy, se elevó la ventana a <code>120 req/min</code> (2 check-ins por segundo sostenidos) y se agregó limpieza automática del <code>ConcurrentHashMap</code> para evitar fugas de memoria (<em>memory leaks</em>).</li>
+      <li><strong>Monitor vivo en <code>app/asistencias/page.tsx</code>:</strong> Efecto de actualización cada <code>5.000 ms</code> activo únicamente mientras <code>document.visibilityState === "visible"</code> + disparo inmediato al recuperar foco. Cuando ingresa alguien excedido en días, aparece una alerta naranja superior sobre <em>"Socios en sala ahora"</em>, badge <code>Excedió plan (4/3 d.)</code>, filtro rápido <code>Excedidos plan</code> y columnas dedicadas en el reporte CSV.</li>
+    </ul>
+  </div>
+
+  <!-- ==================== BLOQUE 3 ==================== -->
+  <h2>4. Bloque 3: Fin de la "Doble Verdad" Multi-Dispositivo y Hardening de Seguridad</h2>
+
+  <div class="callout callout-discovery">
+    <strong>Descubrimiento Técnico Detallado:</strong> Como el gimnasio es administrado en simultáneo desde los celulares/notebooks de los dos hermanos dueños más la tablet del Tótem, usar <code>localStorage</code> como fuente primaria con llamadas REST <em>fire-and-forget</em> (<code>apiCrearPago(...).catch(() =&gt; {})</code>) era catastrófico. Además, cuando la base MySQL recién instalada devolvía una lista vacía <code>[]</code>, la condición <code>if (alumnosDto.length &gt; 0)</code> fallaba y dejaba vivos en pantalla los socios ficticios de demostración (<code>ALUMNOS_MOCK</code>).
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box compare-before">
+      <span class="compare-header">CÓMO ANDABA ANTES</span>
+      <ul>
+        <li>Al vaciar una tabla en MySQL y presionar <code>F5</code>, reaparecían mágicamente los datos mockeados de desarrollo.</li>
+        <li>17 operaciones de creación/edición/borrado silenciaban fallos del servidor con <code>.catch(() =&gt; {})</code> dejando la UI desfasada de MySQL.</li>
+        <li><code>ModalPerfil</code> mostraba <em>"Contraseña actualizada"</em> sin esperar respuesta del servidor ni validar la contraseña actual.</li>
+      </ul>
+    </div>
+    <div class="compare-box compare-after">
+      <span class="compare-header">CÓMO ANDA AHORA</span>
+      <ul>
+        <li>MySQL es la única fuente de verdad: arrays vacíos <code>[]</code> pisan limpiamente cualquier mock gracias a <code>atlas_backend_synced_v1</code>.</li>
+        <li>Todas las mutaciones aplican <strong>Snapshot + Rollback Automático</strong> ante error HTTP y notifican con Toast rojo descriptivo en <code>AppShell</code>.</li>
+        <li>Endurecimiento completo de autenticación, perfil, anti-IDOR, validación Bean Validation y credenciales iniciales parametrizadas.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 3.1 — Patrón Optimistic Rollback, Anti-Mocks Zombies y Re-Hidratación por Foco</span>
+      <span class="pill pill-blue">React 19 Store Architecture</span>
+    </div>
+    <p>Se refactorizó íntegramente <code>lib/store.tsx</code>, <code>lib/use-avisos.ts</code>, <code>components/app-shell.tsx</code> y <code>components/modal-perfil.tsx</code>:</p>
+    <ul>
+      <li><strong>Erradicación de Mocks Zombies:</strong> Al concretar la primera hidratación exitosa desde Spring Boot, se marca <code>atlas_backend_synced_v1 = "true"</code> y se evalúa <code>Array.isArray(dto)</code> en lugar de <code>dto.length &gt; 0</code>. Si MySQL tiene 0 socios, 0 pagos o 0 avisos, el frontend refleja exactamente 0 registros y persiste ese estado limpio.</li>
+      <li><strong>Sincronización Cruzada entre los Dos Hermanos:</strong> Se suscribieron listeners a <code>window.focus</code> y <code>document.visibilitychange</code> (con <em>throttle</em> de 8 segundos) que re-ejecutan <code>hidratarDesdeBackend()</code> automáticamente apenas cualquiera de los dueños desbloquea el celular o vuelve a la pestaña.</li>
+      <li><strong>Rollback Transaccional en Cliente:</strong> En las 17 mutaciones del sistema (alumnos, pagos, planes, rutinas, asignación de rutinas, videoteca, sesiones de entrenamiento, asistencias y avisos), se captura el estado previo antes de actualizar la UI; si la promesa HTTP rechaza (400, 401, 403, 404, 500 o timeout), se restaura instantáneamente el snapshot anterior y se emite <code>notificarErrorSync()</code> (con detección específica de <code>HTTP 401</code> para avisar que expiró la sesión JWT).</li>
+    </ul>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 3.2 — Cinco Controles de Seguridad Cerrados en Backend (<code>SeguridadHardeningTest</code>)</span>
+      <span class="pill pill-green">Spring Security + JJWT</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 26%;">Vector Auditado</th>
+          <th style="width: 44%;">Mecanismo Implementado en Backend</th>
+          <th style="width: 30%;">Prueba Automatizada</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Fuerza Bruta en Login</strong><br><code>POST /api/auth/login</code></td>
+          <td><code>AuthService</code> rastrea fallos en <code>ConcurrentHashMap&lt;String, RegistroIntentos&gt;</code>. Al 5to intento fallido bloquea el identificador por 120 segundos devolviendo HTTP <code>429 Too Many Requests</code>.</td>
+          <td>5 intentos <code>401</code> -&gt; 6to intento bloqueado con <code>429</code> aun con clave real.</td>
+        </tr>
+        <tr>
+          <td><strong>Secuestro de Perfil y XSS</strong><br><code>PUT /api/auth/perfil</code></td>
+          <td>Exige <code>passwordActual</code> verificada contra hash BCrypt antes de admitir nueva clave (&gt;= 6 chars). Valida <code>esUrlImagenSegura()</code> permitiendo solo <code>https://</code>, <code>http://</code> o <code>/</code> (bloquea <code>javascript:</code>).</td>
+          <td>Rechaza con <code>400</code> sin clave actual, con clave errónea o con <code>javascript:alert(1)</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>IDOR en Rutinas Privadas</strong><br><code>GET /api/rutinas/{id}</code></td>
+          <td><code>RutinaController.buscarPorId</code> verifica rol: si no es <code>ROLE_ADMIN</code> y <code>!rutina.esGenerica()</code>, comprueba que el ID coincida con la rutina asignada al alumno autenticado; si no, lanza <code>AccessDeniedException</code>.</td>
+          <td>Alumno A recibe <code>200</code> en la suya/genérica y <code>403 Forbidden</code> en la de Alumno B.</td>
+        </tr>
+        <tr>
+          <td><strong>Inyección de Datos Inválidos</strong><br><code>POST /api/videoteca</code></td>
+          <td><code>VideoTecnicaDto</code> anotado con <code>@NotBlank</code> en <code>titulo</code> y <code>@Size</code> exactos (<code>150</code>, <code>50</code>, <code>500</code>, <code>100</code>) alineados al DDL de MySQL, evaluados por <code>@Valid</code> y <code>GlobalExceptionHandler</code>.</td>
+          <td>Payload con título vacío retorna <code>400 Bad Request</code> con detalle de campo.</td>
+        </tr>
+        <tr>
+          <td><strong>Credenciales Hardcodeadas</strong><br><code>DataInitializer.java</code></td>
+          <td>Parametrizadas vía <code>atlas.admin.email</code> y <code>atlas.admin.password</code>. Se eliminó el logueo de la contraseña en texto plano y en producción no recrea cuentas si ya existe un <code>ADMIN</code> activo.</td>
+          <td>Validado en arranque con perfil de producción y Flyway activo.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== BLOQUE 4 ==================== -->
+  <h2>5. Bloque 4: Migraciones Versionadas con Flyway 10 y <code>ddl-auto=validate</code></h2>
+
+  <div class="callout callout-discovery">
+    <strong>Descubrimiento Técnico Detallado:</strong> El backend operaba con <code>spring.jpa.hibernate.ddl-auto=update</code> como configuración base y carecía de motor de migraciones SQL. En producción, dejar que el ORM modifique tablas financieras y de socios automáticamente sin scripts versionados ni índices explícitos es una de las causas más frecuentes de corrupción silenciosa o bloqueos de arranque tras una actualización.
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box compare-before">
+      <span class="compare-header">CÓMO ANDABA ANTES</span>
+      <ul>
+        <li>0 scripts SQL versionados; el esquema dependía de lo que Hibernate infiriera en tiempo de ejecución.</li>
+        <li>Faltaban índices compuestos de lectura intensiva en tablas de crecimiento diario (<code>asistencias</code>, <code>pagos</code>, <code>sesiones_entrenamiento</code>).</li>
+        <li>Secretos con valores por defecto débiles embebidos en el único <code>application.properties</code>.</li>
+      </ul>
+    </div>
+    <div class="compare-box compare-after">
+      <span class="compare-header">CÓMO ANDA AHORA</span>
+      <ul>
+        <li><code>flyway-core</code> + <code>flyway-mysql</code> gobiernan el esquema mediante <code>V1__esquema_inicial.sql</code> (16 tablas exactas con integridad referencial).</li>
+        <li>Perfil <code>application-prod.properties</code> con <code>ddl-auto=validate</code>: Hibernate valida cada columna al arrancar sin tocar el DDL.</li>
+        <li>Test automatizado <code>FlywayEsquemaValidacionTest</code> certifica en cada build que SQL y entidades JPA coinciden al 100%.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 4.1 — Arquitectura Relacional de las 16 Tablas en <code>V1__esquema_inicial.sql</code></span>
+      <span class="pill pill-blue">DDL MySQL 8.0 + Índices B-Tree</span>
+    </div>
+    <p>Se relevaron las 13 clases <code>@Entity</code> y las 3 tablas de colección/unión (<code>@ElementCollection</code> y <code>@ManyToMany</code>) para escribir un DDL determinístico con políticas de borrado contablemente seguras:</p>
+    <ul>
+      <li><strong>Núcleo de Identidad y Catálogos:</strong> <code>usuarios</code> (<code>uk_usuarios_email</code>), <code>planes</code> (<code>DECIMAL(10,2)</code>), <code>rutinas</code>, <code>videos_tecnica</code> y <code>video_consejos</code> (<code>ON DELETE CASCADE</code>).</li>
+      <li><strong>Estructura de Entrenamiento:</strong> <code>dias_rutina</code>, tabla puente <code>dias_rutina_videos</code> y <code>ejercicios</code> (<code>ON DELETE SET NULL</code> hacia <code>videos_tecnica</code> para no romper rutinas si se borra un video).</li>
+      <li><strong>Padrón y Contabilidad Protegida:</strong> <code>alumnos</code> (<code>uk_alumnos_dni</code>, <code>uk_alumnos_usuario</code>) y <code>pagos</code> (con <code>cantidad_meses INT DEFAULT 1</code>, <code>alumno_nombre_historico VARCHAR(150)</code> y <code>ON DELETE SET NULL</code> sobre <code>alumno_id</code>/<code>plan_id</code> para que <strong>jamás se pierda un registro de caja histórico</strong> aunque se elimine un socio o plan).</li>
+      <li><strong>Operación Diaria y Progreso:</strong> <code>asistencias</code>, <code>avisos</code>, <code>aviso_leidos</code>, <code>sesiones_entrenamiento</code>, <code>sesiones_ejercicios</code> y <code>registros_series</code> (<code>DOUBLE PRECISION</code> para kilajes fraccionarios).</li>
+      <li><strong>Índices Compuestos de Alta Frecuencia:</strong> <code>idx_pagos_alumno_fecha (alumno_id, fecha)</code>, <code>idx_asistencias_alumno_fecha (alumno_id, fecha)</code> e <code>idx_sesiones_alumno_fecha (alumno_id, fecha)</code>, acelerando el check-in del Tótem y el cálculo de cupos semanales a sub-milisegundos.</li>
+    </ul>
+  </div>
+
+  <!-- ==================== BLOQUE 5 ==================== -->
+  <h2>6. Bloque 5: Infraestructura Docker, Blindaje Horario UTC-3 y Backups Diarios</h2>
+
+  <div class="callout callout-discovery">
+    <strong>Descubrimiento Técnico Detallado:</strong> Durante el diseño del contenedor productivo detectamos dos trampas clásicas de despliegue real en Argentina: (1) Las imágenes Linux Alpine/Debian corren por defecto en <code>UTC</code>; a las <strong>21:00 hs de Buenos Aires</strong> ya es las <strong>00:00 hs del día siguiente</strong> en el contenedor, lo que adelantaba 3 horas el vencimiento del día 10 y registraba mal la fecha de quienes entrenan de noche. (2) Clonar scripts <code>.sh</code> desde Windows con <code>autocrlf</code> inyecta <code>\r\n</code> y rompe <code>cron</code> en Linux con <code>/usr/bin/env: 'bash\r'</code>.
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box compare-before">
+      <span class="compare-header">CÓMO ANDABA ANTES</span>
+      <ul>
+        <li>Despliegue manual dependiente de tener JDK 17, Maven, Node 20 y MySQL instalados a mano en la máquina destino.</li>
+        <li><code>.gitignore</code> del backend no bloqueaba archivos <code>.env</code> ni carpetas <code>backups/</code>, con riesgo de filtrar claves a GitHub.</li>
+        <li>Sin estrategia automatizada de respaldo ni retención de base de datos.</li>
+      </ul>
+    </div>
+    <div class="compare-box compare-after">
+      <span class="compare-header">CÓMO ANDA AHORA</span>
+      <ul>
+        <li>Orquestación completa en un comando (<code>docker compose up -d --build</code>) con imágenes multi-stage livianas y usuarios no-root.</li>
+        <li>Reloj sincronizado a <code>America/Argentina/Buenos_Aires</code> (<code>-03:00</code>) en los 3 contenedores (MySQL + JVM + Node.js).</li>
+        <li>Scripts <code>backup-mysql.sh</code> (LF garantizado) y <code>backup-mysql.ps1</code> con snapshot transaccional <code>.sql.gz</code> y rotación a 14 días.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tech-card">
+    <div class="tech-card-header">
+      <span class="tech-card-title">Tecnicismo 5.1 — Contenedores Multi-Stage Blindados y Aislamiento de Red</span>
+      <span class="pill pill-green">Docker + Compose Prod</span>
+    </div>
+    <ul>
+      <li><strong>Backend (<code>atlasgym_back/Dockerfile</code>):</strong> Compila en etapa efímera <code>maven:3.9-eclipse-temurin-17-alpine</code> y copia únicamente el JAR final a <code>eclipse-temurin:17-jre-alpine</code> con <code>tzdata</code>, usuario sin privilegios <code>atlas</code> y flags JVM <code>-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Duser.timezone=America/Argentina/Buenos_Aires</code>.</li>
+      <li><strong>Frontend (<code>atlasgym_front/Dockerfile</code> + <code>next.config.mjs</code>):</strong> Activa condicionalmente <code>output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined</code> (evitando conflictos de symlinks en Windows local pero generando el bundle mínimo <code>server.js</code> en Docker sobre <code>node:20-alpine</code> con usuario <code>nextjs</code> UID 1001).</li>
+      <li><strong>Orquestación (<code>docker-compose.yml</code>):</strong> MySQL 8.0 configurado con <code>utf8mb4_unicode_ci</code>, <code>--default-time-zone=-03:00</code>, <em>healthcheck</em> activo antes de iniciar Spring Boot y puerto bindeado exclusivamente a loopback local (<code>127.0.0.1:${DB_HOST_PORT:-3307}:3306</code>) para que la base de datos sea invisible desde Internet público. Exige mediante sintaxis <code>${VAR:?mensaje}</code> que todos los secretos productivos estén definidos en <code>.env</code>.</li>
+      <li><strong>Backups Consistentes en Caliente:</strong> <code>scripts/backup-mysql.sh</code> y <code>scripts/backup-mysql.ps1</code> ejecutan <code>mysqldump --single-transaction --quick --routines --triggers</code> (lee un snapshot MVCC consistente de InnoDB sin bloquear el Tótem ni la caja), comprimen en <code>gzip -9</code> sobre un archivo temporal <code>.tmp</code>, verifican tamaño no nulo antes de confirmar, restringen permisos con <code>chmod 600</code> y eliminan respaldos de más de 14 días.</li>
+    </ul>
+  </div>
+
+  <!-- ==================== INVENTARIO Y VERIFICACIÓN ==================== -->
+  <h2>7. Evidencia de Verificación Automatizada e Inventario de Archivos</h2>
+
+  <div class="kpi-grid">
+    <div class="kpi-box">
+      <span class="kpi-num">34 / 34</span>
+      <span class="kpi-label">Tests Backend JUnit 5 + MockMvc + Flyway</span>
+    </div>
+    <div class="kpi-box">
+      <span class="kpi-num">134 / 134</span>
+      <span class="kpi-label">Tests Frontend Vitest (15 Suites)</span>
+    </div>
+    <div class="kpi-box">
+      <span class="kpi-num">0 Errores</span>
+      <span class="kpi-label">TypeScript Strict (tsc --noEmit)</span>
+    </div>
+    <div class="kpi-box">
+      <span class="kpi-num">13 / 13</span>
+      <span class="kpi-label">Rutas Compiladas (next build Prod)</span>
+    </div>
+  </div>
+
+  <h3>7.1. Nuevas Suites de Pruebas de Regresión Creadas</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 34%;">Archivo de Prueba</th>
+        <th style="width: 14%;">Entorno</th>
+        <th style="width: 52%;">Casos Críticos Certificados</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>CuotasEstadoYMultiMesTest.java</code></td>
+        <td>Spring Boot / H2</td>
+        <td>Transiciones exactas día 10 (<code>AL_DIA</code>) -&gt; día 11 (<code>PENDIENTE</code>) -&gt; mes siguiente (<code>MOROSO</code>) -&gt; abandono &gt;60d (<code>INACTIVO</code>), cobertura de pagos trimestrales/semestrales (<code>cantidadMeses</code>) y socio nuevo con 0 pagos.</td>
+      </tr>
+      <tr>
+        <td><code>TotemYLimiteSemanalTest.java</code></td>
+        <td>Spring Boot / MockMvc</td>
+        <td>Parser de planes con cupo vs libres, deduplicación de doble fichaje el mismo día, alerta <code>excedeLimiteSemanal=true</code> al 4to día de un plan de 3 días sin bloquear el ingreso y ráfaga de hora pico en <code>/api/asistencias/totem</code> sin disparar HTTP 429.</td>
+      </tr>
+      <tr>
+        <td><code>SeguridadHardeningTest.java</code></td>
+        <td>Spring Boot / Security</td>
+        <td>Bloqueo HTTP 429 al 6to login fallido, rechazo HTTP 400 en cambio de clave sin <code>passwordActual</code> válida o <code>fotoUrl</code> con <code>javascript:</code>, bloqueo IDOR HTTP 403 entre socios en rutinas privadas, validación <code>@Valid</code> en videoteca y validación de <code>X-Totem-Secret</code>.</td>
+      </tr>
+      <tr>
+        <td><code>FlywayEsquemaValidacionTest.java</code></td>
+        <td>Flyway 10 + Hibernate 6</td>
+        <td>Levanta base limpia ejecutando <code>V1__esquema_inicial.sql</code> con <code>spring.jpa.hibernate.ddl-auto=validate</code> y <code>atlas.seed.enabled=false</code>, certificando 0 discrepancias entre las 16 tablas SQL y las entidades JPA.</td>
+      </tr>
+      <tr>
+        <td><code>lib/cuotas-estados.test.ts</code><br><code>lib/asistencias.test.ts</code><br><code>lib/api-mappers.test.ts</code></td>
+        <td>Vitest 5 / Frontend</td>
+        <td>Isomorfismo 1:1 con Java en cálculo de estados de cuota <code>Opción A</code>, promos multi-mes, conteo semanal Lunes–Domingo sin desviación UTC, deduplicación de doble turno y mapeo de DTOs del Tótem y asistencias.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>7.2. Mapa Completo de Archivos Intervenidos por Repositorio</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">Repositorio / Capa</th>
+        <th style="width: 78%;">Archivos Modificados y Creados</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Backend — Dominio, DTOs y Repositorios</strong><br>(<code>atlasgym_back</code>)</td>
+        <td><code>Modelo/Pago.java</code> · <code>Dto/PagoRequestDto.java</code> · <code>Dto/PagoResponseDto.java</code> · <code>Dto/AsistenciaResponseDto.java</code> · <code>Dto/TotemCheckInResponseDto.java</code> · <code>Dto/VideoTecnicaDto.java</code> · <code>Repositorio/AlumnoRepository.java</code> · <code>Repositorio/PagoRepository.java</code> · <code>Repositorio/AsistenciaRepository.java</code></td>
+      </tr>
+      <tr>
+        <td><strong>Backend — Servicios, Seguridad y Control</strong><br>(<code>atlasgym_back</code>)</td>
+        <td><code>Servicio/AlumnoService.java</code> · <code>Servicio/PagoService.java</code> · <code>Servicio/AsistenciaService.java</code> · <code>Servicio/AuthService.java</code> · <code>Controlador/AsistenciaController.java</code> · <code>Controlador/RutinaController.java</code> · <code>Controlador/VideoTecnicaController.java</code> · <code>Seguridad/SecurityConfig.java</code> · <code>Excepciones/GlobalExceptionHandler.java</code> · <code>Config/DataInitializer.java</code></td>
+      </tr>
+      <tr>
+        <td><strong>Backend — Flyway, Config y DevOps</strong><br>(<code>atlasgym_back</code>)</td>
+        <td><code>pom.xml</code> · <code>src/main/resources/db/migration/V1__esquema_inicial.sql</code> · <code>application.properties</code> · <code>application-prod.properties</code> · <code>src/test/resources/application.properties</code> · <code>Dockerfile</code> · <code>.dockerignore</code> · <code>docker-compose.yml</code> · <code>.env.example</code> · <code>scripts/backup-mysql.sh</code> · <code>scripts/backup-mysql.ps1</code> · <code>.gitignore</code> · <code>.gitattributes</code></td>
+      </tr>
+      <tr>
+        <td><strong>Frontend — Núcleo, Sync y Utilidades</strong><br>(<code>atlasgym_front</code>)</td>
+        <td><code>lib/types.ts</code> · <code>lib/date-utils.ts</code> · <code>lib/asistencia-utils.ts</code> · <code>lib/api-client.ts</code> · <code>lib/api-mappers.ts</code> · <code>lib/store.tsx</code> · <code>lib/use-avisos.ts</code></td>
+      </tr>
+      <tr>
+        <td><strong>Frontend — Módulos UI y Despliegue</strong><br>(<code>atlasgym_front</code>)</td>
+        <td><code>app/finanzas/page.tsx</code> · <code>app/totem/page.tsx</code> · <code>app/asistencias/page.tsx</code> · <code>app/planes/page.tsx</code> · <code>components/app-shell.tsx</code> · <code>components/modal-perfil.tsx</code> · <code>next.config.mjs</code> · <code>Dockerfile</code> · <code>.dockerignore</code> · <code>.env.example</code> · <code>.gitignore</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-solution">
+    <strong>Protocolo Rápido de Puesta en Marcha para Entrega al Cliente:</strong>
+    1) Copiar <code>atlasgym_back/.env.example</code> a <code>atlasgym_back/.env</code> y definir contraseñas reales + <code>ATLAS_JWT_SECRET</code> de 256 bits (<code>openssl rand -hex 32</code>) + <code>ATLAS_TOTEM_SECRET</code>.
+    2) Ejecutar <code>docker compose up -d --build</code>: MySQL 8 levantará blindado en <code>127.0.0.1</code>, Flyway creará y validará las 16 tablas automáticamente con <code>V1__esquema_inicial.sql</code>, y se creará únicamente la cuenta administradora de los dueños sin datos basura.
+    3) Registrar <code>scripts/backup-mysql.sh</code> en <code>cron</code> (Linux) o <code>scripts/backup-mysql.ps1</code> en el Programador de Tareas (Windows) a las 03:30 AM.
+  </div>
+
+  <div class="footer-note">
+    <span><strong>ATLAS Gym</strong> · Informe Técnico de Descubrimiento y Remediación Integral (Back + Front)</span>
+    <span>Generado y Verificado · Octubre 2026</span>
+  </div>
+
+</body>
+</html>

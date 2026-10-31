@@ -1,5 +1,7 @@
 package com.atlas.backend.Controlador;
 
+import com.atlas.backend.Dto.AlumnoImportRequestDto;
+import com.atlas.backend.Dto.AlumnoImportResponseDto;
 import com.atlas.backend.Dto.AlumnoRequestDto;
 import com.atlas.backend.Dto.AlumnoResponseDto;
 import com.atlas.backend.Servicio.AlumnoService;
@@ -7,9 +9,9 @@ import com.atlas.backend.Servicio.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/alumnos")
@@ -96,6 +99,22 @@ public class AlumnoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
+    @PostMapping("/importar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AlumnoImportResponseDto> importarPadronMasivo(
+            @RequestBody AlumnoImportRequestDto body,
+            Authentication authentication
+    ) {
+        String operador = (authentication != null && authentication.getName() != null)
+                ? authService.resolverEtiquetaOperador(authentication.getName())
+                : "Admin";
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                body != null ? body.filas() : List.of(),
+                operador
+        );
+        return ResponseEntity.ok(res);
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AlumnoResponseDto> actualizar(
@@ -117,11 +136,18 @@ public class AlumnoController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AlumnoResponseDto> asignarCredenciales(
             @PathVariable Long id,
-            @RequestBody java.util.Map<String, String> body
+            @RequestBody Map<String, String> body
     ) {
         String usuario = body.get("usuario");
         String password = body.get("password");
         AlumnoResponseDto actualizado = alumnoService.asignarCredenciales(id, usuario, password);
+        return ResponseEntity.ok(actualizado);
+    }
+
+    @PostMapping("/{id}/blanquear-clave")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AlumnoResponseDto> blanquearClaveADni(@PathVariable Long id) {
+        AlumnoResponseDto actualizado = alumnoService.blanquearClaveADni(id);
         return ResponseEntity.ok(actualizado);
     }
 }

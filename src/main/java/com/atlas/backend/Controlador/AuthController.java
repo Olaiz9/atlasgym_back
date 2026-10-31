@@ -3,6 +3,7 @@ package com.atlas.backend.Controlador;
 import com.atlas.backend.Dto.LoginRequest;
 import com.atlas.backend.Dto.LoginResponse;
 import com.atlas.backend.Servicio.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -26,8 +27,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        String clientIp = servletRequest != null && servletRequest.getRemoteAddr() != null
+                ? servletRequest.getRemoteAddr()
+                : "local";
+        LoginResponse response = authService.login(request, clientIp);
         return ResponseEntity.ok(response);
     }
 
