@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # ATLAS Gym - Backup Diario Automatizado de MySQL (Linux / VPS / Cron)
+# Incluye validación de integridad gzip y hooks de resguardo offsite (nube / NAS).
 # Ejemplo crontab (todos los días a las 03:30 AM):
 #   30 3 * * * /opt/atlasgym_back/scripts/backup-mysql.sh >> /var/log/atlas-backup.log 2>&1
 # ============================================================================
@@ -25,6 +26,8 @@ DB_USER_NAME="${DB_USER:-root}"
 DB_PASS_VAL="${DB_PASSWORD:-}"
 DB_HOST_NAME="${DB_HOST:-127.0.0.1}"
 DB_PORT_NUM="${DB_HOST_PORT:-3307}"
+OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-}"
+RCLONE_TARGET="${RCLONE_REMOTE:-}"
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -52,10 +55,39 @@ if [[ "${FILE_SIZE}" -lt 100 ]]; then
   exit 1
 fi
 
+# Verificación de integridad de descompresión gzip
+if ! gzip -t "${TMP_FILE}" >/dev/null 2>&1; then
+  rm -f "${TMP_FILE}"
+  echo "[ERROR] El archivo de backup gzip está corrupto o truncado (falló gzip -t)." >&2
+  exit 1
+fi
+
 mv "${TMP_FILE}" "${BACKUP_FILE}"
 chmod 600 "${BACKUP_FILE}"
 
-# Limpieza automática de backups mayores a RETENTION_DAYS días
+# Limpieza automática local de backups mayores a RETENTION_DAYS días
 find "${BACKUP_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete
 
-echo "[$(date -Iseconds)] Backup completado OK: ${BACKUP_FILE} (${FILE_SIZE} bytes). Retención: ${RETENTION_DAYS} días."
+echo "[$(date -Iseconds)] Backup local verificado OK: ${BACKUP_FILE} (${FILE_SIZE} bytes). Retención: ${RETENTION_DAYS} días."
+
+# Hook Offsite 1: Carpeta sincronizada externa (Google Drive Desktop, OneDrive o NAS)
+if [[ -n "${OFFSITE_DIR}" ]]; then
+  if [[ -d "${OFFSITE_DIR}" ]]; then
+    echo "[$(date -Iseconds)] Sincronizando copia offsite a '${OFFSITE_DIR}'..."
+    cp -p "${BACKUP_FILE}" "${OFFSITE_DIR}/"
+    find "${OFFSITE_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete || true
+    echo "[$(date -Iseconds)] Copia offsite sincronizada exitosamente."
+  else
+    echo "[WARN] BACKUP_OFFSITE_DIR='${OFFSITE_DIR}' configurado pero no es un directorio accesible." >&2
+  fi
+fi
+
+# Hook Offsite 2: Remoto rclone hacia nube (S3, B2, Google Drive)
+if [[ -n "${RCLONE_TARGET}" ]]; then
+  if command -v rclone >/dev/null 2>&1; then
+    echo "[$(date -Iseconds)] Subiendo copia offsite a remoto rclone '${RCLONE_TARGET}'..."
+    rclone copy "${BACKUP_FILE}" "${RCLONE_TARGET}" || echo "[WARN] Falló el comando rclone copy hacia '${RCLONE_TARGET}'." >&2
+  else
+    echo "[WARN] RCLONE_REMOTE='${RCLONE_TARGET}' configurado pero el binario 'rclone' no está en PATH." >&2
+  fi
+fi
