@@ -13,6 +13,7 @@ public record PagoResponseDto(
         String metodo,
         String estado,
         String periodoMes,
-        String comprobante
+        String comprobante,
+        Boolean alumnoActivo
 ) {
 }

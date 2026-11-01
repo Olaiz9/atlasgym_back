@@ -17,11 +17,20 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${atlas.jwt.secret}")
-    private String secretKey;
+    private final SecretKey signingKey;
+    private final long jwtExpiration;
 
-    @Value("${atlas.jwt.expiration:86400000}")
-    private long jwtExpiration;
+    public JwtService(@Value("${atlas.jwt.secret:}") String secretKey,
+                      @Value("${atlas.jwt.expiration:86400000}") long jwtExpiration) {
+        if (secretKey == null || secretKey.isBlank()
+                || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException(
+                    "Configure ATLAS_JWT_SECRET con una clave aleatoria de al menos 32 bytes. "
+                    + "Para desarrollo local ejecute scripts/configurar-jwt-local.ps1.");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.jwtExpiration = jwtExpiration;
+    }
 
     public String generarToken(Long usuarioId, String email, String rol, Long alumnoId) {
         Map<String, Object> claims = new HashMap<>();
@@ -101,7 +110,6 @@ public class JwtService {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+        return signingKey;
     }
 }
