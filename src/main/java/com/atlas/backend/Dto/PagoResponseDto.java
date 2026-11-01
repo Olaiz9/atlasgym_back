@@ -3,6 +3,7 @@ package com.atlas.backend.Dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record PagoResponseDto(
         Long id,
@@ -21,7 +22,8 @@ public record PagoResponseDto(
         String registradoPor,
         String anuladoPor,
         LocalDateTime fechaAnulacion,
-        String motivoAnulacion
+        String motivoAnulacion,
+        List<MovimientoCajaDto> movimientos
 ) {
     public PagoResponseDto(
             Long id,
@@ -53,7 +55,8 @@ public record PagoResponseDto(
                 null,
                 null,
                 null,
-                null
+                null,
+                List.of()
         );
     }
 }

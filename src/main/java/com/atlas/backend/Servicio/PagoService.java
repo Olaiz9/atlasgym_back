@@ -2,6 +2,7 @@ package com.atlas.backend.Servicio;
 
 import com.atlas.backend.Dto.ArqueoCajaDto;
 import com.atlas.backend.Dto.ArqueoOperadorDto;
+import com.atlas.backend.Dto.MovimientoCajaDto;
 import com.atlas.backend.Dto.PagoCompletarSaldoRequestDto;
 import com.atlas.backend.Dto.PagoRequestDto;
 import com.atlas.backend.Dto.PagoResponseDto;
@@ -12,10 +13,13 @@ import com.atlas.backend.Modelo.Asistencia;
 import com.atlas.backend.Modelo.EstadoCuenta;
 import com.atlas.backend.Modelo.EstadoPago;
 import com.atlas.backend.Modelo.MetodoPago;
+import com.atlas.backend.Modelo.MovimientoCaja;
 import com.atlas.backend.Modelo.Pago;
 import com.atlas.backend.Modelo.Plan;
+import com.atlas.backend.Modelo.TipoMovimientoCaja;
 import com.atlas.backend.Repositorio.AlumnoRepository;
 import com.atlas.backend.Repositorio.AsistenciaRepository;
+import com.atlas.backend.Repositorio.MovimientoCajaRepository;
 import com.atlas.backend.Repositorio.PagoRepository;
 import com.atlas.backend.Repositorio.PlanRepository;
 import org.springframework.stereotype.Service;
@@ -30,10 +34,8 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class PagoService {
@@ -43,17 +45,20 @@ public class PagoService {
     private final PlanRepository planRepository;
     private final AsistenciaRepository asistenciaRepository;
     private final AlumnoService alumnoService;
+    private final MovimientoCajaRepository movimientoCajaRepository;
 
     public PagoService(PagoRepository pagoRepository,
                        AlumnoRepository alumnoRepository,
                        PlanRepository planRepository,
                        AsistenciaRepository asistenciaRepository,
-                       AlumnoService alumnoService) {
+                       AlumnoService alumnoService,
+                       MovimientoCajaRepository movimientoCajaRepository) {
         this.pagoRepository = pagoRepository;
         this.alumnoRepository = alumnoRepository;
         this.planRepository = planRepository;
         this.asistenciaRepository = asistenciaRepository;
         this.alumnoService = alumnoService;
+        this.movimientoCajaRepository = movimientoCajaRepository;
     }
 
     @Transactional
@@ -143,6 +148,16 @@ public class PagoService {
         pago.setEstadoPago(estado);
         pago.setComprobante(dto.comprobante());
         pago.setRegistradoPor(operador != null && !operador.isBlank() ? operador.trim() : "Sistema");
+        if (montoAbonado.compareTo(BigDecimal.ZERO) > 0) {
+            pago.agregarMovimiento(new MovimientoCaja(
+                    pago,
+                    estado == EstadoPago.PARCIAL ? TipoMovimientoCaja.SENIA : TipoMovimientoCaja.PAGO_TOTAL,
+                    montoAbonado,
+                    metodo,
+                    fechaPago,
+                    pago.getRegistradoPor()
+            ));
+        }
 
         Pago guardado = pagoRepository.saveAndFlush(pago);
         if (dto.usuarioApp() != null && !dto.usuarioApp().isBlank()
@@ -224,6 +239,7 @@ public class PagoService {
             throw new BusinessException("Para anular un pago debe utilizar la operación de anulación indicando el motivo obligatorio.");
         }
 
+        BigDecimal cobradoAntes = pago.getMontoRecaudadoEfectivo();
         pago.setEstadoPago(nuevoEstado);
         if (nuevoEstado == EstadoPago.PAGADO) {
             pago.setMontoAbonado(pago.getMonto());
@@ -232,6 +248,11 @@ public class PagoService {
             }
         } else if (nuevoEstado == EstadoPago.PENDIENTE || nuevoEstado == EstadoPago.VENCIDO) {
             pago.setMontoAbonado(BigDecimal.ZERO);
+        }
+        // Si el cambio manual de estado mete o saca plata de la caja, queda asentado como ajuste del día.
+        BigDecimal diferencia = pago.getMontoRecaudadoEfectivo().subtract(cobradoAntes);
+        if (diferencia.compareTo(BigDecimal.ZERO) != 0) {
+            registrarMovimiento(pago, TipoMovimientoCaja.AJUSTE, diferencia, pago.getMetodoPago(), operador);
         }
         Pago actualizado = pagoRepository.saveAndFlush(pago);
 
@@ -257,29 +278,29 @@ public class PagoService {
         BigDecimal seniaPrevia = pago.getMontoAbonado() != null ? pago.getMontoAbonado() : BigDecimal.ZERO;
         BigDecimal saldo = pago.getMonto().subtract(seniaPrevia).max(BigDecimal.ZERO);
         MetodoPago metodoOriginal = pago.getMetodoPago();
+        MetodoPago metodoSaldo = (req != null && req.metodo() != null && !req.metodo().isBlank())
+                ? parseMetodoPago(req.metodo())
+                : metodoOriginal;
 
-        if (req != null && req.metodo() != null && !req.metodo().isBlank()) {
-            MetodoPago metodoSaldo = parseMetodoPago(req.metodo());
-            pago.setMetodoPago(metodoSaldo);
-            if (metodoOriginal != null && metodoOriginal != metodoSaldo && seniaPrevia.compareTo(BigDecimal.ZERO) > 0) {
-                String detalle = String.format("Seña $%s (%s) + Saldo $%s (%s)",
-                        seniaPrevia.stripTrailingZeros().toPlainString(),
-                        metodoOriginal.name(),
-                        saldo.stripTrailingZeros().toPlainString(),
-                        metodoSaldo.name());
-                pago.setComprobante(truncar(detalle, 255));
-            }
+        if (metodoOriginal != null && metodoOriginal != metodoSaldo && seniaPrevia.compareTo(BigDecimal.ZERO) > 0) {
+            String detalle = String.format("Seña $%s (%s) + Saldo $%s (%s)",
+                    seniaPrevia.stripTrailingZeros().toPlainString(),
+                    metodoOriginal.name(),
+                    saldo.stripTrailingZeros().toPlainString(),
+                    metodoSaldo.name());
+            pago.setComprobante(truncar(detalle, 255));
         }
         if (req != null && req.comprobante() != null && !req.comprobante().isBlank()) {
             pago.setComprobante(truncar(req.comprobante().trim(), 255));
         }
 
+        // El comprobante conserva fecha, método y titular de la seña original; el saldo entra
+        // a caja como un movimiento propio (hoy, con su método y con quien lo cobró).
+        if (saldo.compareTo(BigDecimal.ZERO) > 0) {
+            registrarMovimiento(pago, TipoMovimientoCaja.SALDO, saldo, metodoSaldo, operador);
+        }
         pago.setMontoAbonado(pago.getMonto());
         pago.setEstadoPago(EstadoPago.PAGADO);
-        pago.setFecha(LocalDate.now());
-        if (operador != null && !operador.isBlank()) {
-            pago.setRegistradoPor(operador.trim());
-        }
 
         Pago actualizado = pagoRepository.saveAndFlush(pago);
         if (pago.getAlumno() != null) {
@@ -329,7 +350,9 @@ public class PagoService {
     @Transactional(readOnly = true)
     public ArqueoCajaDto calcularArqueoDiario(LocalDate fechaConsulta) {
         LocalDate fecha = fechaConsulta != null ? fechaConsulta : LocalDate.now();
-        List<Pago> movimientosDelDia = pagoRepository.findByFechaWithRelaciones(fecha);
+        // La caja del día = los movimientos (seña, saldo, pago total, ajuste) con fecha de ese día,
+        // cada uno con su propio método y titular.
+        List<MovimientoCaja> movimientosDelDia = movimientoCajaRepository.findByFechaConPago(fecha);
 
         LocalDateTime inicioDia = fecha.atStartOfDay();
         LocalDateTime finDia = fecha.plusDays(1).atStartOfDay();
@@ -340,67 +363,64 @@ public class PagoService {
         BigDecimal totalTransferencia = BigDecimal.ZERO;
         BigDecimal totalTarjeta = BigDecimal.ZERO;
         int cantidadCobros = 0;
-        int cantidadParciales = 0;
-        BigDecimal saldoPendienteParciales = BigDecimal.ZERO;
 
         Map<String, BigDecimal> recaudadoPorOperador = new LinkedHashMap<>();
         Map<String, Integer> opsPorOperador = new LinkedHashMap<>();
-        Set<Long> idsAnuladosContabilizados = new LinkedHashSet<>();
-        BigDecimal montoAnulado = BigDecimal.ZERO;
+        Map<Long, Pago> anulados = new LinkedHashMap<>();
+        Map<Long, Pago> parcialesDelDia = new LinkedHashMap<>();
 
-        for (Pago p : movimientosDelDia) {
-            EstadoPago estado = p.getEstadoPago() != null ? p.getEstadoPago() : EstadoPago.PAGADO;
-            if (estado == EstadoPago.ANULADO) {
-                idsAnuladosContabilizados.add(p.getIdPago());
-                BigDecimal importeOriginal = p.getMontoAbonado() != null && p.getMontoAbonado().compareTo(BigDecimal.ZERO) > 0
-                        ? p.getMontoAbonado()
-                        : (p.getMonto() != null ? p.getMonto() : BigDecimal.ZERO);
-                montoAnulado = montoAnulado.add(importeOriginal);
+        for (MovimientoCaja m : movimientosDelDia) {
+            Pago p = m.getPago();
+            if (p.getEstadoPago() == EstadoPago.ANULADO) {
+                // Comprobante anulado: su dinero no cuenta como recaudación de caja.
+                anulados.putIfAbsent(p.getIdPago(), p);
+                continue;
+            }
+            BigDecimal monto = m.getMonto() != null ? m.getMonto() : BigDecimal.ZERO;
+            if (monto.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
             }
 
-            if (estado != EstadoPago.PAGADO && estado != EstadoPago.PARCIAL) {
-                continue;
+            totalRecaudado = totalRecaudado.add(monto);
+            if (monto.compareTo(BigDecimal.ZERO) > 0) {
+                cantidadCobros++;
             }
 
-            BigDecimal cobrado = p.getMontoRecaudadoEfectivo();
-            if (cobrado.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
-
-            totalRecaudado = totalRecaudado.add(cobrado);
-            cantidadCobros++;
-
-            MetodoPago metodo = p.getMetodoPago() != null ? p.getMetodoPago() : MetodoPago.EFECTIVO;
+            MetodoPago metodo = m.getMetodoPago() != null ? m.getMetodoPago() : MetodoPago.EFECTIVO;
             if (metodo == MetodoPago.TRANSFERENCIA) {
-                totalTransferencia = totalTransferencia.add(cobrado);
+                totalTransferencia = totalTransferencia.add(monto);
             } else if (metodo == MetodoPago.TARJETA) {
-                totalTarjeta = totalTarjeta.add(cobrado);
+                totalTarjeta = totalTarjeta.add(monto);
             } else {
-                totalEfectivo = totalEfectivo.add(cobrado);
+                totalEfectivo = totalEfectivo.add(monto);
             }
 
-            if (estado == EstadoPago.PARCIAL && p.getMonto() != null) {
-                cantidadParciales++;
-                saldoPendienteParciales = saldoPendienteParciales.add(
-                        p.getMonto().subtract(cobrado).max(BigDecimal.ZERO)
-                );
+            if (p.getEstadoPago() == EstadoPago.PARCIAL) {
+                parcialesDelDia.putIfAbsent(p.getIdPago(), p);
             }
 
-            String op = (p.getRegistradoPor() != null && !p.getRegistradoPor().isBlank())
-                    ? p.getRegistradoPor().trim()
+            String op = (m.getRegistradoPor() != null && !m.getRegistradoPor().isBlank())
+                    ? m.getRegistradoPor().trim()
                     : "Sin operador";
-            recaudadoPorOperador.merge(op, cobrado, BigDecimal::add);
+            recaudadoPorOperador.merge(op, monto, BigDecimal::add);
             opsPorOperador.merge(op, 1, Integer::sum);
         }
 
         for (Pago pAnulado : anuladosHoy) {
-            if (idsAnuladosContabilizados.add(pAnulado.getIdPago())) {
-                BigDecimal importeOriginal = pAnulado.getMontoAbonado() != null && pAnulado.getMontoAbonado().compareTo(BigDecimal.ZERO) > 0
-                        ? pAnulado.getMontoAbonado()
-                        : (pAnulado.getMonto() != null ? pAnulado.getMonto() : BigDecimal.ZERO);
-                montoAnulado = montoAnulado.add(importeOriginal);
-            }
+            anulados.putIfAbsent(pAnulado.getIdPago(), pAnulado);
+        }
+        BigDecimal montoAnulado = BigDecimal.ZERO;
+        for (Pago pAnulado : anulados.values()) {
+            BigDecimal importeOriginal = pAnulado.getMontoAbonado() != null && pAnulado.getMontoAbonado().compareTo(BigDecimal.ZERO) > 0
+                    ? pAnulado.getMontoAbonado()
+                    : (pAnulado.getMonto() != null ? pAnulado.getMonto() : BigDecimal.ZERO);
+            montoAnulado = montoAnulado.add(importeOriginal);
+        }
+
+        BigDecimal saldoPendienteParciales = BigDecimal.ZERO;
+        for (Pago p : parcialesDelDia.values()) {
+            BigDecimal abonado = p.getMontoAbonado() != null ? p.getMontoAbonado() : BigDecimal.ZERO;
+            saldoPendienteParciales = saldoPendienteParciales.add(p.getMonto().subtract(abonado).max(BigDecimal.ZERO));
         }
 
         List<ArqueoOperadorDto> desgloseOperadores = new ArrayList<>();
@@ -420,12 +440,23 @@ public class PagoService {
                 totalTransferencia,
                 totalTarjeta,
                 cantidadCobros,
-                cantidadParciales,
+                parcialesDelDia.size(),
                 saldoPendienteParciales,
-                idsAnuladosContabilizados.size(),
+                anulados.size(),
                 montoAnulado,
                 desgloseOperadores
         );
+    }
+
+    private void registrarMovimiento(Pago pago, TipoMovimientoCaja tipo, BigDecimal monto,
+                                     MetodoPago metodo, String operador) {
+        String quien = operador != null && !operador.isBlank() ? operador.trim() : "Sistema";
+        MovimientoCaja movimiento = new MovimientoCaja(
+                pago, tipo, monto, metodo != null ? metodo : MetodoPago.EFECTIVO, LocalDate.now(), quien);
+        pago.agregarMovimiento(movimiento);
+        // El comprobante ya existe: se persiste el movimiento explícitamente (el merge del Pago
+        // no cascadea a elementos nuevos de la colección).
+        movimientoCajaRepository.save(movimiento);
     }
 
     private String truncar(String texto, int max) {
@@ -530,7 +561,17 @@ public class PagoService {
                 p.getRegistradoPor(),
                 p.getAnuladoPor(),
                 p.getFechaAnulacion(),
-                p.getMotivoAnulacion()
+                p.getMotivoAnulacion(),
+                p.getMovimientos().stream()
+                        .map(m -> new MovimientoCajaDto(
+                                m.getId(),
+                                m.getTipo() != null ? m.getTipo().name() : null,
+                                m.getMonto(),
+                                m.getMetodoPago() != null ? m.getMetodoPago().name() : MetodoPago.EFECTIVO.name(),
+                                m.getFecha(),
+                                m.getFechaHora(),
+                                m.getRegistradoPor()))
+                        .toList()
         );
     }
 }

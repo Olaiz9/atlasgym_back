@@ -183,6 +183,76 @@ class CajaYContabilidadRealTest {
         assertThat(alumnoService.calcularEstadoCuenta(socioA)).isEqualTo(EstadoCuenta.AL_DIA);
     }
 
+    /**
+     * Bug real encontrado en el recorrido E2E (2026-10-31): completar una seña pisaba método,
+     * operador y fecha del comprobante, así que el arqueo mostraba todo como cobrado por el
+     * último titular, con el último método y en el último día.
+     */
+    @Test
+    void seniaYSaldoEnDiasYManosDistintas_cadaCobroCuentaEnSuDiaMetodoYTitular() throws Exception {
+        LocalDate diaSenia = LocalDate.now().minusDays(3);
+        LocalDate hoy = LocalDate.now();
+
+        String resp = mvc.perform(post("/api/pagos")
+                        .header("Authorization", tokenBruno)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "alumnoId", socioA.getIdAlumno(),
+                                "monto", 20000,
+                                "montoAbonado", 8000,
+                                "metodo", "EFECTIVO",
+                                "periodoMes", YearMonth.from(diaSenia).toString(),
+                                "fecha", diaSenia.toString()
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long pagoId = json.readTree(resp).get("id").asLong();
+
+        mvc.perform(post("/api/pagos/{id}/completar", pagoId)
+                        .header("Authorization", tokenHermano2)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("metodo", "TRANSFERENCIA"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("PAGADO"))
+                .andExpect(jsonPath("$.movimientos.length()").value(2))
+                .andExpect(jsonPath("$.movimientos[0].monto").value(8000))
+                .andExpect(jsonPath("$.movimientos[0].metodo").value("EFECTIVO"))
+                .andExpect(jsonPath("$.movimientos[0].registradoPor").value("Bruno (Dueño)"))
+                .andExpect(jsonPath("$.movimientos[0].fecha").value(diaSenia.toString()))
+                .andExpect(jsonPath("$.movimientos[1].monto").value(12000))
+                .andExpect(jsonPath("$.movimientos[1].metodo").value("TRANSFERENCIA"))
+                .andExpect(jsonPath("$.movimientos[1].registradoPor").value("Matías (Dueño)"))
+                .andExpect(jsonPath("$.movimientos[1].fecha").value(hoy.toString()));
+
+        // Día de la seña: los $8.000 en efectivo de Bruno siguen ahí
+        String arqueoSenia = mvc.perform(get("/api/pagos/arqueo")
+                        .param("fecha", diaSenia.toString())
+                        .header("Authorization", tokenBruno))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRecaudado").value(8000))
+                .andExpect(jsonPath("$.totalEfectivo").value(8000))
+                .andExpect(jsonPath("$.totalTransferencia").value(0))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode opsSenia = json.readTree(arqueoSenia).get("porOperador");
+        assertThat(opsSenia).hasSize(1);
+        assertThat(opsSenia.get(0).get("operador").asText()).isEqualTo("Bruno (Dueño)");
+
+        // Hoy: solo los $12.000 por transferencia de Matías
+        String arqueoHoy = mvc.perform(get("/api/pagos/arqueo")
+                        .param("fecha", hoy.toString())
+                        .header("Authorization", tokenBruno))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRecaudado").value(12000))
+                .andExpect(jsonPath("$.totalEfectivo").value(0))
+                .andExpect(jsonPath("$.totalTransferencia").value(12000))
+                .andExpect(jsonPath("$.cantidadCobros").value(1))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode opsHoy = json.readTree(arqueoHoy).get("porOperador");
+        assertThat(opsHoy).hasSize(1);
+        assertThat(opsHoy.get(0).get("operador").asText()).isEqualTo("Matías (Dueño)");
+        assertThat(opsHoy.get(0).get("totalRecaudado").decimalValue()).isEqualByComparingTo(new BigDecimal("12000"));
+    }
+
     @Test
     void anulacionAuditada_exigeMotivoPreservaFilaEnBaseYPermiteRecobrarPeriodo() throws Exception {
         String mesActual = YearMonth.now().toString();

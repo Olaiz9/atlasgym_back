@@ -1,9 +1,13 @@
 package com.atlas.backend.Modelo;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(
@@ -71,6 +75,12 @@ public class Pago {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "alumno_id")
     private Alumno alumno;
+
+    /** Ingresos de caja de este comprobante (seña, saldo, pago total), en orden cronológico. */
+    @OneToMany(mappedBy = "pago", cascade = CascadeType.PERSIST)
+    @OrderBy("id ASC")
+    @BatchSize(size = 100)
+    private List<MovimientoCaja> movimientos = new ArrayList<>();
 
     public Pago() {
     }
@@ -251,5 +261,14 @@ public class Pago {
 
     public void setAlumno(Alumno alumno) {
         this.alumno = alumno;
+    }
+
+    public List<MovimientoCaja> getMovimientos() {
+        return movimientos;
+    }
+
+    public void agregarMovimiento(MovimientoCaja movimiento) {
+        movimiento.setPago(this);
+        this.movimientos.add(movimiento);
     }
 }
