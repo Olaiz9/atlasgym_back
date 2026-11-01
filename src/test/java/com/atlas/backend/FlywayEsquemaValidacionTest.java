@@ -12,7 +12,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifica en tiempo de build que todas las migraciones Flyway (V1..V5)
+ * Verifica en tiempo de build que todas las migraciones Flyway (V1..V6)
  * levanten desde cero y superen sin discrepancias el SchemaValidator estricto
  * de Hibernate 6 (spring.jpa.hibernate.ddl-auto=validate).
  */
@@ -31,13 +31,13 @@ class FlywayEsquemaValidacionTest {
     private Flyway flyway;
 
     @Test
-    void flywayMigraV1AV5YHibernateValidaElEsquemaCompletoSinDiscrepancias() {
+    void flywayMigraV1AV6YHibernateValidaElEsquemaCompletoSinDiscrepancias() {
         var aplicadas = flyway.info().applied();
-        assertThat(aplicadas).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(aplicadas).hasSizeGreaterThanOrEqualTo(6);
         List<String> versiones = Arrays.stream(aplicadas)
                 .map(info -> info.getVersion().getVersion())
                 .toList();
-        assertThat(versiones).containsExactly("1", "2", "3", "4", "5");
+        assertThat(versiones).containsExactly("1", "2", "3", "4", "5", "6");
         assertThat(Arrays.stream(aplicadas).allMatch(info -> info.getState().isApplied())).isTrue();
     }
 }
