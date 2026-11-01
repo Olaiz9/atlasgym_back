@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -60,6 +61,34 @@ class CredencialesAlumnoTest {
         assertThat(encoder.matches("clave-titular-prueba", intacto.getPassword())).isTrue();
         assertThat(em.find(Alumno.class, alumno.getIdAlumno()).getUsuario()).isNull();
         assertThat(titular1.getId()).isNotNull();
+    }
+
+    /**
+     * La clave que elige el titular en Finanzas (boton "Generala") la conoce el titular:
+     * el socio tiene que reemplazarla por una propia en su primer ingreso.
+     */
+    @Test
+    void laClaveAsignadaPorElTitularObligaAlSocioACambiarla() throws Exception {
+        crearAdmin("titular3@prueba.local");
+        Alumno alumno = new Alumno();
+        alumno.setNombre("Socio con clave del titular");
+        alumno.setDni("39111333");
+        alumno.setActivo(true);
+        em.persist(alumno);
+        em.flush();
+        String token = iniciarSesion("titular3@prueba.local");
+
+        mvc.perform(post("/api/alumnos/{id}/credenciales", alumno.getIdAlumno())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "usuario", "socio.clave.titular", "password", "Kx7mP2qa"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("email", "socio.clave.titular", "password", "Kx7mP2qa"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requiereCambioPassword").value(true));
     }
 
     private Usuario crearAdmin(String email) {

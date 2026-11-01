@@ -210,8 +210,9 @@ public class AlumnoService {
         String usuarioLimpio = usuarioInput.trim();
         String claveLimpia = passwordInput.trim();
         String passwordHash = passwordEncoder.encode(claveLimpia);
-        String dniSoloNumeros = alumno.getDni() != null ? alumno.getDni().replaceAll("\\D", "") : "";
-        boolean esClavePorDni = !dniSoloNumeros.isEmpty() && dniSoloNumeros.equals(claveLimpia);
+        // La clave la eligio (y la conoce) el titular: el socio siempre tiene que reemplazarla
+        // por una propia en su primer ingreso. Antes solo se exigia si la clave era el DNI.
+        final boolean requiereCambio = true;
 
         var existenteOpt = usuarioRepository.findByEmailIgnoreCase(usuarioLimpio);
 
@@ -224,7 +225,7 @@ public class AlumnoService {
             actual.setPassword(passwordHash);
             actual.setActivo(alumno.isActivo());
             actual.setCelular(alumno.getCelular());
-            actual.setRequiereCambioPassword(esClavePorDni);
+            actual.setRequiereCambioPassword(requiereCambio);
             usuarioRepository.save(actual);
         } else {
             if (existenteOpt.isPresent()) {
@@ -241,7 +242,7 @@ public class AlumnoService {
                 existente.setRol(Rol.ALUMNO);
                 existente.setActivo(alumno.isActivo());
                 existente.setCelular(alumno.getCelular());
-                existente.setRequiereCambioPassword(esClavePorDni);
+                existente.setRequiereCambioPassword(requiereCambio);
                 alumno.setUsuario(usuarioRepository.save(existente));
             } else {
                 Usuario nuevoUsuario = new Usuario();
@@ -251,7 +252,7 @@ public class AlumnoService {
                 nuevoUsuario.setActivo(alumno.isActivo());
                 nuevoUsuario.setFechaCreacion(LocalDate.now());
                 nuevoUsuario.setCelular(alumno.getCelular());
-                nuevoUsuario.setRequiereCambioPassword(esClavePorDni);
+                nuevoUsuario.setRequiereCambioPassword(requiereCambio);
                 alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
             }
         }
