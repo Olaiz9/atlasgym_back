@@ -108,8 +108,15 @@ public class AlumnoController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> darDeBaja(@PathVariable Long id) {
-        alumnoService.darDeBaja(id);
+    public ResponseEntity<Void> darDeBaja(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean definitivo
+    ) {
+        if (definitivo) {
+            alumnoService.eliminarDefinitivamente(id);
+        } else {
+            alumnoService.darDeBaja(id);
+        }
         return ResponseEntity.noContent().build();
     }
 

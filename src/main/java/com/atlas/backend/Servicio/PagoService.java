@@ -189,7 +189,8 @@ public class PagoService {
                 p.getEstadoPago() != null ? p.getEstadoPago().name() : EstadoPago.PAGADO.name(),
                 p.getPeriodoMes(),
                 p.getComprobante(),
-                p.getAlumno() != null ? p.getAlumno().isActivo() : null
+                // Sin alumno = fue borrado definitivamente: el pago historico se marca "de baja"
+                p.getAlumno() != null ? p.getAlumno().isActivo() : false
         );
     }
 }

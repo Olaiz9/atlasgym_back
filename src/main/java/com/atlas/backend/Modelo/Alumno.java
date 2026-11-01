@@ -185,8 +185,13 @@ public class Alumno {
     /** Evita que un borrado JPA accidental sustituya la baja administrativa. */
     @PreRemove
     private void impedirBorradoFisico() {
-        throw new IllegalStateException(
-                "El alumno conserva su historial contable y deportivo. Use darDeBaja() en lugar de eliminarlo.");
+        boolean tieneHistorial = (pagosAlumnos != null && !pagosAlumnos.isEmpty()) ||
+                                 (asistencias != null && !asistencias.isEmpty()) ||
+                                 (sesionesEntrenamiento != null && !sesionesEntrenamiento.isEmpty());
+        if (tieneHistorial) {
+            throw new IllegalStateException(
+                    "El alumno conserva su historial contable y deportivo. Use darDeBaja() en lugar de eliminarlo.");
+        }
     }
 
     public LocalDate getUltimaAsistencia() {

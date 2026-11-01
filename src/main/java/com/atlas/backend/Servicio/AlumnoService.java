@@ -18,6 +18,8 @@ import com.atlas.backend.Repositorio.RutinaRepository;
 import com.atlas.backend.Repositorio.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -33,6 +35,8 @@ public class AlumnoService {
     private final PagoRepository pagoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager em;
 
     public AlumnoService(AlumnoRepository alumnoRepository,
                          PlanRepository planRepository,
@@ -120,19 +124,8 @@ public class AlumnoService {
             alumno.setRutinaAlumno(rutina);
         }
 
-        // Generar automáticamente el nombre de usuario y cuenta de acceso para el nuevo inscripto
-        String usernameGenerado = generarUsernameUnico(dto.nombre(), dto.dni(), null);
-        String dniSoloNumeros = dto.dni().replaceAll("\\D", "");
-        String passwordInicial = dniSoloNumeros.isEmpty() ? "alumno123" : dniSoloNumeros;
-
-        Usuario nuevoUsuario = new Usuario();
-        nuevoUsuario.setEmail(usernameGenerado);
-        nuevoUsuario.setPassword(passwordEncoder.encode(passwordInicial));
-        nuevoUsuario.setRol(Rol.ALUMNO);
-        nuevoUsuario.setActivo(alumno.isActivo());
-        nuevoUsuario.setFechaCreacion(LocalDate.now());
-        nuevoUsuario.setCelular(alumno.getCelular());
-        alumno.setUsuario(usuarioRepository.save(nuevoUsuario));
+        // Las credenciales de acceso se crean exclusivamente en Finanzas al registrar el primer pago
+        alumno.setUsuario(null);
 
         Alumno guardado = alumnoRepository.save(alumno);
         return mapToDto(guardado);
@@ -244,11 +237,78 @@ public class AlumnoService {
     public void darDeBaja(Long id) {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
-        alumno.darDeBaja();
-        if (alumno.getUsuario() != null) {
-            alumno.getUsuario().setActivo(false);
+
+        // Paso 1: Si está activo, se da de baja lógica y pasa a Inactivos
+        if (alumno.isActivo()) {
+            alumno.setActivo(false);
+            if (alumno.getUsuario() != null) {
+                alumno.getUsuario().setActivo(false);
+                usuarioRepository.save(alumno.getUsuario());
+            }
+            List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
+            if (pagos != null && !pagos.isEmpty()) {
+                for (Pago p : pagos) {
+                    if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
+                        p.setAlumnoNombreHistorico(alumno.getNombre());
+                    }
+                }
+                pagoRepository.saveAll(pagos);
+            }
+            alumnoRepository.save(alumno);
+            return;
         }
-        alumnoRepository.save(alumno);
+
+        // Paso 2: Si ya estaba inactivo, se elimina definitivamente preservando pagos históricos
+        eliminarDefinitivamente(id);
+    }
+
+    @Transactional
+    public void eliminarDefinitivamente(Long id) {
+        Alumno alumno = alumnoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
+
+        // 1. Preservar pagos como historicos y desvincular del alumno en la tabla pagos
+        List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
+        if (pagos != null && !pagos.isEmpty()) {
+            for (Pago p : pagos) {
+                if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
+                    p.setAlumnoNombreHistorico(alumno.getNombre());
+                }
+                p.setAlumno(null);
+            }
+            pagoRepository.saveAllAndFlush(pagos);
+        }
+
+        // 2. Eliminar avisos vinculados a este alumno y sus registros de lectura
+        em.createNativeQuery("DELETE FROM aviso_leidos WHERE aviso_id IN (SELECT id FROM avisos WHERE alumno_id = :aid)")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM avisos WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 3. Eliminar asistencias
+        em.createNativeQuery("DELETE FROM asistencias WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 4. Eliminar sesiones de entrenamiento y series
+        em.createNativeQuery("DELETE FROM registros_series WHERE sesion_ejercicio_id IN (SELECT id FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid))")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid)")
+                .setParameter("aid", id).executeUpdate();
+        em.createNativeQuery("DELETE FROM sesiones_entrenamiento WHERE alumno_id = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 5. Eliminar alumno de la tabla alumnos
+        Usuario usuario = alumno.getUsuario();
+        em.createNativeQuery("DELETE FROM alumnos WHERE id_alumno = :aid")
+                .setParameter("aid", id).executeUpdate();
+
+        // 6. Eliminar usuario de acceso si existia
+        if (usuario != null) {
+            em.createNativeQuery("DELETE FROM aviso_leidos WHERE usuario_id = :uid")
+                    .setParameter("uid", usuario.getId()).executeUpdate();
+            em.createNativeQuery("DELETE FROM usuarios WHERE id = :uid")
+                    .setParameter("uid", usuario.getId()).executeUpdate();
+        }
     }
 
     /**
@@ -338,7 +398,7 @@ public class AlumnoService {
 
         String username = alumno.getUsuario() != null && alumno.getUsuario().getEmail() != null
                 ? alumno.getUsuario().getEmail()
-                : generarUsernameBase(alumno.getNombre(), alumno.getDni());
+                : null;
 
         EstadoCuenta estadoCuenta = calcularEstadoCuenta(alumno);
 
