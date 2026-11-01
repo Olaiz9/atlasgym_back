@@ -43,9 +43,11 @@ Las migraciones residen en `src/main/resources/db/migration/`:
 - `V2__totem_outbox_e_indices.sql`: Índices de rendimiento y soporte para sincronización offline del tótem (`client_event_id VARCHAR(64) UNIQUE`).
 - `V3__hardening_identidad.sql`: Columna `requiere_cambio_password BOOLEAN` y `nombre_mostrar VARCHAR(100)` en `usuarios`.
 - `V4__caja_real_argentina.sql`: Columnas para caja real: `monto_abonado DECIMAL(10,2)`, `registrado_por VARCHAR(100)`, `anulado_por VARCHAR(100)`, `fecha_anulacion DATETIME(6)`, `motivo_anulacion VARCHAR(255)`, e índice `idx_pagos_fecha_estado`.
+- `V5__movimientos_caja.sql`: Tabla `movimientos_caja`: cada ingreso (pago total, seña, saldo, ajuste) con su propio día, método y titular. El arqueo diario se calcula sumando movimientos, no el estado final del comprobante.
+- `V6__configuracion_cobro.sql`: Tabla `configuracion_cobro` (fila única) con alias/titular de transferencia editables por los titulares.
 
 > [!CRITICAL]
-> **Regla de Esquema Hibernate:** En perfil `prod`, `spring.jpa.hibernate.ddl-auto` está seteado en `validate`. NUNCA modifiques una entidad JPA sin crear la migración Flyway correspondiente (`V5__...sql`), de lo contrario la aplicación fallará al arrancar.
+> **Regla de Esquema Hibernate:** En perfil `prod`, `spring.jpa.hibernate.ddl-auto` está seteado en `validate`. NUNCA modifiques una entidad JPA sin crear la migración Flyway correspondiente (`V7__...sql`, la siguiente versión libre), de lo contrario la aplicación fallará al arrancar.
 
 ---
 
@@ -65,6 +67,7 @@ Las migraciones residen en `src/main/resources/db/migration/`:
   - `POST /api/pagos/{id}/anular`: Anula un comprobante exigiendo `motivo`. NUNCA se borra físicamente de la base.
   - `DELETE /api/pagos/{id}`: Redirige automáticamente a anulación administrativa para preservar la auditoría.
   - `GET /api/pagos/arqueo?fecha=YYYY-MM-DD`: Arqueo diario consolidado por método y desglose por operador.
+- **Datos de cobro (`/api/configuracion/cobro`):** `GET` (cualquier usuario logueado) y `PUT` (solo ADMIN) del alias/titular de transferencia que ven los alumnos.
 - **Asistencias y Tótem (`/api/asistencias`):**
   - `POST /api/asistencias/totem`: Check-in presencial en tótem autenticado por header `X-Totem-Secret`.
   - `GET /api/asistencias/totem/padron-cache`: Padrón mínimo con límites de días para funcionamiento offline.
@@ -77,7 +80,7 @@ Las migraciones residen en `src/main/resources/db/migration/`:
 ### 5. Comandos de Verificación y Compilación
 
 ```powershell
-# Ejecutar suite completa de tests unitarios y de integración (44 tests)
+# Ejecutar suite completa de tests unitarios y de integración (48 tests)
 .\mvnw.cmd test
 
 # Empaquetar JAR de producción omitiendo tests (genera target/backend-0.0.1-SNAPSHOT.jar)
