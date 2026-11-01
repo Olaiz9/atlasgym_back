@@ -1,4 +1,7 @@
 # ATLAS Gym — Backend (Spring Boot 3.4.3 / Java 17+ / MySQL 8.0)
+
+> **Reglas de trabajo para todas las IAs (Git, tests, migraciones, alcance): ver `AGENTS.md`.**
+> Este archivo es el contexto de negocio y arquitectura.
 ## Guía de Arquitectura, Reglas de Negocio y Operación para Claude Code
 
 Este archivo proporciona el contexto completo y las reglas operativas de ingeniería para cualquier sesión de desarrollo, auditoría o mantenimiento con **Claude Code** en este repositorio.
