@@ -115,13 +115,13 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 try {
     if ($UseDocker) {
         docker exec -e "MYSQL_PWD=$DbPass" $ContainerName `
-            mysqldump --single-transaction --quick --routines --triggers -u $DbUser $DbName 2>$null `
+            mysqldump --single-transaction --no-tablespaces --quick --routines --triggers -u $DbUser $DbName 2>$null `
             | Out-File -FilePath $PreRestoreSql -Encoding utf8
     } else {
         $mysqldumpBin = Resolver-MysqlBin "mysqldump"
         $env:MYSQL_PWD = $DbPass
         try {
-            & $mysqldumpBin --single-transaction --quick --routines --triggers `
+            & $mysqldumpBin --single-transaction --no-tablespaces --quick --routines --triggers `
                 -h 127.0.0.1 -P $DbPort -u $DbUser $DbName 2>$null `
                 | Out-File -FilePath $PreRestoreSql -Encoding utf8
         } finally {

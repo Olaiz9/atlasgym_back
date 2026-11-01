@@ -79,8 +79,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8080}
+    # Solo accesible desde el propio servidor: el publico entra por Caddy (HTTPS).
     ports:
-      - "${FRONTEND_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000"
 
   caddy:
     image: caddy:2-alpine

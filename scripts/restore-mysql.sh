@@ -16,11 +16,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# Cargar .env como DATOS, no como codigo: con "source", una linea como
+# ATLAS_ADMIN_NOMBRE=Titular 1 se ejecuta como el comando "1" y el script se corta.
 if [[ -f "${PROJECT_DIR}/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "${PROJECT_DIR}/.env"
-  set +a
+  while IFS= read -r linea || [[ -n "${linea}" ]]; do
+    linea="${linea%$'\r'}"
+    [[ -z "${linea}" || "${linea}" =~ ^[[:space:]]*# || "${linea}" != *=* ]] && continue
+    clave="${linea%%=*}"
+    valor="${linea#*=}"
+    [[ "${clave}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    # Comillas envolventes opcionales: CLAVE="valor con espacios"
+    if [[ "${valor}" =~ ^\"(.*)\"$ || "${valor}" =~ ^\'(.*)\'$ ]]; then valor="${BASH_REMATCH[1]}"; fi
+    export "${clave}=${valor}"
+  done < "${PROJECT_DIR}/.env"
 fi
 
 if [[ $# -lt 1 ]]; then
@@ -85,11 +93,11 @@ fi
 
 if [[ "${USE_DOCKER}" == "true" ]]; then
   docker exec -e MYSQL_PWD="${DB_PASS_VAL}" "${CONTAINER_NAME}" \
-    mysqldump --single-transaction --quick --routines --triggers \
+    mysqldump --single-transaction --no-tablespaces --quick --routines --triggers \
     -u "${DB_USER_NAME}" "${DB_NAME}" 2>/dev/null | gzip -9 > "${PRE_RESTORE_FILE}" || true
 else
   MYSQL_PWD="${DB_PASS_VAL}" mysqldump \
-    --single-transaction --quick --routines --triggers \
+    --single-transaction --no-tablespaces --quick --routines --triggers \
     -h "${DB_HOST_NAME}" -P "${DB_PORT_NUM}" -u "${DB_USER_NAME}" "${DB_NAME}" 2>/dev/null | gzip -9 > "${PRE_RESTORE_FILE}" || true
 fi
 
