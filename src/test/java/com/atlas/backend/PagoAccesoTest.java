@@ -136,15 +136,15 @@ class PagoAccesoTest {
     @Test
     void sinSesionNoSeConsultanNiGestionanPagos() throws Exception {
         for (String ruta : List.of("/api/pagos", "/api/pagos/alumno/" + alumnoA, "/api/pagos/" + pagoA)) {
-            mvc.perform(get(ruta)).andExpect(status().isForbidden());
+            mvc.perform(get(ruta)).andExpect(status().isUnauthorized());
         }
         mvc.perform(post("/api/pagos").contentType(MediaType.APPLICATION_JSON).content(nuevoPago()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         mvc.perform(patch("/api/pagos/{id}/estado", pagoA).param("estado", "PENDIENTE"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         mvc.perform(put("/api/pagos/{id}/estado", pagoA).param("estado", "PENDIENTE"))
-                .andExpect(status().isForbidden());
-        mvc.perform(delete("/api/pagos/{id}", pagoA)).andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/pagos/{id}", pagoA)).andExpect(status().isUnauthorized());
     }
 
     private String nuevoPago() throws Exception {

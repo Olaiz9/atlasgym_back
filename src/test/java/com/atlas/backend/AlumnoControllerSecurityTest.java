@@ -60,7 +60,7 @@ class AlumnoControllerSecurityTest {
 
     @Test
     void sinSesionNoConsultaFichas() throws Exception {
-        mvc.perform(get("/api/alumnos/10")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/alumnos/10")).andExpect(status().isUnauthorized());
         verifyNoInteractions(alumnos, auth);
     }
 

@@ -91,7 +91,7 @@ class BajaAlumnoAccesoTest {
 
     private void verificarBloqueo(Long id, String token) throws Exception {
         mvc.perform(get("/api/alumnos/{id}", id).header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/auth/perfil").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
