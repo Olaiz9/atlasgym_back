@@ -37,3 +37,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Salidas de cada corrida de scripts/smoke-local.ps1 (se regeneran)
+reportes/smoke/
