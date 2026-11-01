@@ -41,6 +41,15 @@ jobs:
       - name: Compilar y correr tests
         run: ./mvnw -B clean test
 
+      # Informe HTML de cobertura (JaCoCo): se descarga desde la pagina de la corrida (seccion "Artifacts").
+      - name: Guardar informe de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-back
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+
       # Si falla, se pueden descargar los reportes desde la pagina de la corrida.
       - name: Guardar reportes de tests
         if: failure()
