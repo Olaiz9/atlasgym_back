@@ -7,6 +7,7 @@ import com.atlas.backend.Excepciones.ResourceNotFoundException;
 import com.atlas.backend.Modelo.Alumno;
 import com.atlas.backend.Modelo.Plan;
 import com.atlas.backend.Repositorio.AlumnoRepository;
+import com.atlas.backend.Repositorio.PagoRepository;
 import com.atlas.backend.Repositorio.PlanRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,13 @@ public class PlanService {
 
     private final PlanRepository planRepository;
     private final AlumnoRepository alumnoRepository;
+    private final PagoRepository pagoRepository;
 
-    public PlanService(PlanRepository planRepository, AlumnoRepository alumnoRepository) {
+    public PlanService(PlanRepository planRepository, AlumnoRepository alumnoRepository,
+                       PagoRepository pagoRepository) {
         this.planRepository = planRepository;
         this.alumnoRepository = alumnoRepository;
+        this.pagoRepository = pagoRepository;
     }
 
     @Transactional(readOnly = true)
@@ -75,11 +79,18 @@ public class PlanService {
         return mapToDto(actualizado);
     }
 
+    /**
+     * Elimina un plan desde la pantalla de Planes.
+     * - Con socios activos: no se puede (409); primero hay que cambiarles el plan.
+     * - Con historial (cobros registrados o socios dados de baja con ese plan): se DESACTIVA en vez
+     *   de borrarse. Borrarlo dejaria esos cobros como "Sin plan" (la FK es ON DELETE SET NULL)
+     *   y a los ex socios sin plan si se los reactiva. Deja de ofrecerse igual que si se borrara.
+     * - Sin ningun uso (por ejemplo, cargado por error): se borra definitivamente.
+     */
     @Transactional
     public void eliminar(Long id) {
-        if (!planRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Plan", id);
-        }
+        Plan plan = planRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan", id));
 
         List<Alumno> alumnosConPlan = alumnoRepository.findByPlanId(id);
         List<Alumno> alumnosActivos = alumnosConPlan.stream()
@@ -94,7 +105,14 @@ public class PlanService {
             );
         }
 
-        planRepository.deleteById(id);
+        boolean tieneHistorial = !alumnosConPlan.isEmpty() || pagoRepository.existsByPlanId(id);
+        if (tieneHistorial) {
+            plan.setActivo(false);
+            planRepository.save(plan);
+            return;
+        }
+
+        planRepository.delete(plan);
     }
 
     private PlanResponseDto mapToDto(Plan p) {

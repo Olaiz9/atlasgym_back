@@ -38,4 +38,8 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
 
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Pago p WHERE p.alumno.idAlumno = :alumnoId AND p.periodoMes = :periodoMes")
     boolean existsByAlumnoIdAndPeriodoMes(@Param("alumnoId") Long alumnoId, @Param("periodoMes") String periodoMes);
+
+    /** Si algun cobro (incluso anulado) quedo registrado con este plan. */
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Pago p WHERE p.planPago.idPlan = :planId")
+    boolean existsByPlanId(@Param("planId") Long planId);
 }
