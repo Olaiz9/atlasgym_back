@@ -84,7 +84,7 @@ try {
     $up = $false
     # No alcanza con que el puerto abra: Tomcat escucha ANTES de que DataInitializer (CommandLineRunner)
     # cree las cuentas de los titulares. Esperamos su ultima linea de log (prod o dev).
-    $listo = 'DataInitializer: (atlas\.seed\.enabled=false|Verificaci.n de datos semilla completada)'
+    $listo = 'DataInitializer: (se omiten datos de demostraci.n|atlas\.seed\.enabled=false|Verificaci.n de datos semilla completada)'
     for ($i = 0; $i -lt 120; $i++) {
         if ($proc.HasExited) { break }
         if ((Test-Path $backLog) -and (Select-String -Path $backLog -Pattern $listo -Quiet)) { $up = $true; break }
