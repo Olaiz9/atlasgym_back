@@ -4,6 +4,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Secretos y Backups Locales ###
+.env
+.env*.local
+!.env.example
+backups/
+
 ### STS ###
 .apt_generated
 .classpath
@@ -34,3 +40,9 @@ build/
 
 # Clave JWT local: nunca versionar este archivo.
 /config/atlas-local.properties
+
+# Salidas de cada corrida de scripts/smoke-local.ps1 (se regeneran)
+reportes/smoke/
+
+# Backups de base de datos: nunca a Git (pueden tener datos reales de socios)
+backups/

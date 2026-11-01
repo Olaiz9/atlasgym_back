@@ -33,6 +33,12 @@ public class Usuario {
     @Column(name = "celular", length = 30)
     private String celular;
 
+    @Column(name = "nombre_mostrar", length = 120)
+    private String nombreMostrar;
+
+    @Column(name = "requiere_cambio_password", nullable = false)
+    private boolean requiereCambioPassword = false;
+
     @OneToOne(mappedBy = "usuario")
     private Alumno alumno;
 
@@ -121,6 +127,22 @@ public class Usuario {
 
     public void setCelular(String celular) {
         this.celular = celular;
+    }
+
+    public String getNombreMostrar() {
+        return nombreMostrar;
+    }
+
+    public void setNombreMostrar(String nombreMostrar) {
+        this.nombreMostrar = nombreMostrar;
+    }
+
+    public boolean isRequiereCambioPassword() {
+        return requiereCambioPassword;
+    }
+
+    public void setRequiereCambioPassword(boolean requiereCambioPassword) {
+        this.requiereCambioPassword = requiereCambioPassword;
     }
 
     public Alumno getAlumno() {

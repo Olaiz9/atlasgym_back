@@ -15,6 +15,35 @@ public record AsistenciaResponseDto(
         LocalDate fecha,
         LocalTime hora,
         MetodoAsistencia metodo,
-        EstadoCuenta estadoCuenta
+        EstadoCuenta estadoCuenta,
+        Integer asistenciasSemana,
+        Integer limiteDiasSemana,
+        Boolean excedeLimiteSemanal
 ) {
+    public AsistenciaResponseDto(
+            Long id,
+            Long alumnoId,
+            String nombreAlumno,
+            String alumnoDni,
+            String planNombre,
+            LocalDate fecha,
+            LocalTime hora,
+            MetodoAsistencia metodo,
+            EstadoCuenta estadoCuenta
+    ) {
+        this(
+                id,
+                alumnoId,
+                nombreAlumno,
+                alumnoDni,
+                planNombre,
+                fecha,
+                hora,
+                metodo,
+                estadoCuenta,
+                null,
+                null,
+                false
+        );
+    }
 }

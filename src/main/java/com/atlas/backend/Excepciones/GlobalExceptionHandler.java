@@ -1,5 +1,7 @@
 package com.atlas.backend.Excepciones;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,6 +17,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> manejarResourceNotFound(ResourceNotFoundException ex) {
@@ -78,11 +82,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> manejarErrorGeneral(Exception ex) {
+        log.error("Excepción interna no controlada en el servidor:", ex);
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("timestamp", LocalDateTime.now());
         respuesta.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         respuesta.put("error", "Error interno del servidor");
-        respuesta.put("mensaje", ex.getMessage());
+        respuesta.put("mensaje", "Ocurrió un error interno al procesar la solicitud.");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
     }
 }

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Auditoría Escéptica (Red-Team & Due Diligence) - ATLAS Gym</title>
+<style>
+  @page {
+    size: A4;
+    margin: 15mm 15mm 17mm 15mm;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.5;
+    font-size: 9.6pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .header-banner {
+    border-bottom: 3px solid #dc2626;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 9999px;
+    font-size: 7.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  h1 {
+    font-size: 18.5pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 7px 0 4px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+  }
+
+  .subtitle {
+    font-size: 10.2pt;
+    color: #475569;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+
+  .meta-item strong {
+    display: block;
+    font-size: 7pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .meta-item span {
+    font-size: 8.8pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .meta-item span.verdict {
+    color: #dc2626;
+  }
+
+  .callout {
+    padding: 11px 14px;
+    border-radius: 8px;
+    margin: 12px 0 16px 0;
+    font-size: 9pt;
+    break-inside: avoid;
+  }
+
+  .callout-critical {
+    background-color: #fef2f2;
+    border-left: 4px solid #dc2626;
+    color: #7f1d1d;
+  }
+
+  .callout-slate {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-left: 4px solid #ef4444;
+  }
+
+  .callout-slate strong {
+    color: #fca5a5;
+  }
+
+  h2 {
+    font-size: 11.8pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-left: 4px solid #dc2626;
+    padding-left: 9px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    break-after: avoid;
+  }
+
+  .section-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 11px 14px;
+    margin-bottom: 12px;
+    break-inside: avoid;
+  }
+
+  .section-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 5px;
+  }
+
+  .section-title {
+    font-size: 10.6pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .severity-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 7pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .sev-critical {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+  }
+
+  .sev-high {
+    background-color: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fdba74;
+  }
+
+  p {
+    margin: 0 0 7px 0;
+    color: #334155;
+  }
+
+  ul, ol {
+    margin: 4px 0 6px 0;
+    padding-left: 18px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 5px;
+  }
+
+  code {
+    font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+    font-size: 8.2pt;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8.3pt;
+    break-inside: avoid;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 7px 9px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .footer-note {
+    margin-top: 18px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 7.8pt;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Cabecera -->
+  <div class="header-banner">
+    <div>
+      <span class="badge-tag">Auditoría Crítica · Red-Team &amp; Due Diligence</span>
+      <h1>¿POR QUÉ ATLAS GYM NO VA A FUNCIONAR HOY?</h1>
+      <div class="subtitle">Análisis Escéptico de Riesgos Transaccionales, Operativos, Técnicos y de Modelo de Negocio</div>
+    </div>
+  </div>
+
+  <!-- Ficha Técnica -->
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Perspectiva</strong>
+      <span>Inversor / Dueño / Arquitecto</span>
+    </div>
+    <div class="meta-item">
+      <strong>Repositorios Auditados</strong>
+      <span>atlasgym_front + atlasgym_back</span>
+    </div>
+    <div class="meta-item">
+      <strong>Diagnóstico Real</strong>
+      <span class="verdict">Alto Riesgo Operativo</span>
+    </div>
+    <div class="meta-item">
+      <strong>Fecha de Revisión</strong>
+      <span>Octubre 2026</span>
+    </div>
+  </div>
+
+  <!-- Postura Escéptica -->
+  <div class="callout callout-critical">
+    <strong>Premisa del Dictamen Escéptico:</strong> Si nos sentamos del otro lado de la mesa como inversores, dueños de un gimnasio con 500 socios o arquitectos senior y se plantea salir a producción en 2 o 3 semanas, la respuesta directa es que <strong>el sistema se va a chocar contra la pared apenas pise un gimnasio real</strong>. No porque la interfaz no sea atractiva o porque falten tests unitarios, sino porque existen bombas de tiempo en la arquitectura de sincronización, en la operatoria diaria de mostrador y en el modelo comercial.
+  </div>
+
+  <!-- Punto 1 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">1. La arquitectura de "Doble Verdad" va a hacer desaparecer plata el primer día</h3>
+      <span class="severity-pill sev-critical">Riesgo Crítico · Finanzas</span>
+    </div>
+    <p>
+      El frontend nació como un prototipo apoyado en <code>localStorage</code> con datos ficticios (<code>ALUMNOS_MOCK</code>, <code>PAGOS_MOCK</code>) al que luego se le acopló el backend mediante actualizaciones optimistas que <strong>silencian los fallos de red y de servidor</strong>.
+    </p>
+    <ul>
+      <li><strong>Evidencia en código:</strong> En <code>lib/store.tsx</code>, operaciones críticas como <code>agregarPago</code>, <code>agregarAlumno</code>, <code>eliminarAlumno</code> y <code>actualizarUsuarioActual</code> mutan el estado local inmediatamente y encadenan la petición HTTP con <code>.catch(() =&gt; {})</code>.</li>
+      <li><strong>Escenario real en mostrador:</strong> Son las 19:30 hs (hora pico). Recepción cobra $35.000 en efectivo; ocurre un microcorte de internet de 2 segundos, expira el token JWT o MySQL devuelve conflicto. La pantalla confirma que <strong>el pago se registró con éxito</strong> porque quedó guardado en el <code>localStorage</code> de esa PC y descartó la excepción, pero en MySQL ese cobro <strong>jamás existió</strong>.</li>
+      <li><strong>Consecuencia letal:</strong> A la noche el dueño revisa la caja desde su celular y falta dinero. Al día siguiente, el socio que pagó figura moroso. La primera vez que un sistema contable pierde un cobro o muestra saldos distintos según la pantalla, el dueño vuelve a Excel al día siguiente y abandona el producto.</li>
+    </ul>
+  </div>
+
+  <!-- Punto 2 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">2. Un único rol ADMIN: invitación abierta al robo hormiga en recepción</h3>
+      <span class="severity-pill sev-critical">Riesgo Crítico · Control Interno</span>
+    </div>
+    <p>
+      En un gimnasio real el dueño no atiende el mostrador las 16 horas de apertura: delega en recepcionistas por turno y profesores de sala.
+    </p>
+    <ul>
+      <li><strong>Evidencia en código:</strong> En <code>Rol.java</code> solo existen dos roles: <code>ADMIN</code> y <code>ALUMNO</code>. No existen perfiles intermedios (<code>RECEPCIONISTA</code>, <code>PROFESOR</code>, <code>CAJERO</code>).</li>
+      <li><strong>Vulnerabilidad operativa:</strong> Para que un profesor asigne una rutina o un recepcionista cobre una cuota, hay que otorgarle rol <code>ADMIN</code>. Eso le habilita automáticamente <code>DELETE /api/pagos/{id}</code> en <code>PagoController.java</code>, ver la facturación total del negocio y dar de baja socios.</li>
+      <li><strong>Cero trazabilidad:</strong> Un empleado puede cobrar en efectivo, esperar a que el socio salga por la puerta, eliminar el pago del sistema y quedarse con el billete. No existe ninguna tabla de auditoría (<em>audit log</em> inmutable) que registre quién creó, modificó o anuló un movimiento de caja. Ningún dueño serio acepta operar a ciegas con su caja chica.</li>
+    </ul>
+  </div>
+
+  <!-- Punto 3 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">3. El Tótem no frena morosos, se desincroniza y se auto-bloquea en hora pico</h3>
+      <span class="severity-pill sev-critical">Riesgo Crítico · Operación en Puerta</span>
+    </div>
+    <p>
+      El Kiosco Tótem luce excelente en una demostración controlada, pero en la puerta real de un gimnasio falla por cuatro frentes simultáneos:
+    </p>
+    <ol>
+      <li><strong>Los morosos entran igual y no se controlan los días contratados:</strong> En <code>AsistenciaService.checkInPorDni</code>, aunque el socio sea <code>MOROSO</code>, el backend persiste la asistencia y devuelve <code>ok: true</code>. La tablet muestra una alerta amarilla durante 3,5 segundos y se reinicia sola. Sin integración a un molinete físico por relé, en hora pico el moroso pasa caminando. Además, se venden planes de <em>"3 días por semana"</em>, pero el Tótem jamás contabiliza ingresos semanales: el socio paga 3 días y entrena los 7.</li>
+      <li><strong>Desincronización entre recepción y entrada:</strong> En <code>app/totem/page.tsx</code>, el Tótem evalúa primero la memoria local de la tablet antes de consultar al backend, mientras que <code>lib/store.tsx</code> sincroniza pestañas con <code>BroadcastChannel</code> (que solo opera dentro del mismo navegador físico). Si el socio paga en la PC del mostrador y camina dos metros hacia la tablet de entrada, la tablet evalúa datos viejos.</li>
+      <li><strong>Auto-bloqueo (DoS propio) a las 19:00 hs:</strong> En <code>AsistenciaController.java</code> se fijó un límite de <strong>20 consultas por minuto por IP</strong>. La tablet del Tótem tiene una única IP (y detrás de Nginx/Docker sin configuración de cabeceras <code>X-Forwarded-For</code>, todo el tráfico comparte la IP del proxy). Cuando a las 19:00 hs ingresan 25 socios seguidos (uno cada 2,5 segundos, sumado a errores de tipeo), <strong>al socio N° 21 el propio sistema le bloquea la puerta con HTTP 429</strong>.</li>
+      <li><strong>Cuentas regaladas por defecto:</strong> En Argentina el DNI es un dato público fácil de obtener. En <code>AlumnoService.crear</code>, el usuario se genera como <code>nombre + últimos 3 dígitos del DNI</code> y <strong>la contraseña inicial es el propio DNI</strong> sin exigir cambio obligatorio en el primer inicio de sesión. Cualquiera que conozca el DNI de un socio accede a su perfil, teléfono, pagos y rutina.</li>
+    </ol>
+  </div>
+
+  <!-- Punto 4 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">4. Colapso de performance al escalar (El muro de los 800 socios)</h3>
+      <span class="severity-pill sev-high">Riesgo Alto · Escalabilidad</span>
+    </div>
+    <p>
+      El sistema vuela con una semilla de prueba reducida, pero su diseño de consultas colapsa tras 12 meses de operación real:
+    </p>
+    <ul>
+      <li><strong>Problema N+1 masivo en Base de Datos:</strong> <code>AlumnoService.listarTodos()</code> itera sobre cada socio y ejecuta <code>calcularEstadoCuenta(alumno)</code>, disparando <code>pagoRepository.findByAlumnoIdOrderByFechaDesc(...)</code> individualmente por cada registro. En un gimnasio con 1.000 socios históricos (activos e inactivos), abrir el listado dispara <strong>más de 1.000 consultas SQL separadas</strong> por cada refresco de pantalla.</li>
+      <li><strong>Ausencia absoluta de paginación y límite de 5 MB en navegador:</strong> <code>PagoService.listarTodos()</code> y <code>AsistenciaService.listarTodas()</code> ejecutan <code>findAll()</code> trayendo toda la historia a memoria RAM, y el frontend intenta serializar esas colecciones completas dentro de <code>localStorage</code>. Con 150 ingresos diarios (~45.000 asistencias al año), el payload JSON degrada la red y detona <code>QuotaExceededError</code> al superar el límite de 5 MB del navegador.</li>
+    </ul>
+  </div>
+
+  <!-- Punto 5 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">5. El motor comercial no entiende cómo cobra un gimnasio real</h3>
+      <span class="severity-pill sev-high">Riesgo Alto · Lógica de Negocio</span>
+    </div>
+    <p>
+      La función <code>calcularEstadoCuenta</code> en <code>AlumnoService.java</code> modela una economía idealizada que choca con las promociones y cobros habituales del rubro:
+    </p>
+    <ul>
+      <li><strong>Mezcla contradictoria de mes calendario y días corridos:</strong> Verifica simultáneamente <code>periodoActual.equals(ultimoPago.getPeriodoMes())</code> (mes calendario <code>yyyy-MM</code>) o que la fecha de pago esté dentro de los últimos 31 días. Un socio que paga octubre atrasado el día 28 figura <code>AL_DIA</code> hasta el 28 de noviembre sin haber pagado noviembre.</li>
+      <li><strong>Castigo a los mejores clientes (Planes Trimestrales / Semestrales / Anuales):</strong> La entidad <code>Pago</code> solo registra un único string <code>periodoMes</code> (ej. <code>"2026-10"</code>) sin fecha de vigencia (<code>fechaDesde</code> / <code>fechaVencimiento</code>). Si un socio paga un pack trimestral o anual por adelantado, <strong>al día 32 el sistema lo clasifica automáticamente como MOROSO</strong>.</li>
+      <li><strong>Casos diarios no soportados:</strong> No admite pagos parciales o señas, congelamiento de días por viaje o lesión, recargos automáticos fuera de término ni conciliación por webhook con MercadoPago (obliga a cargar transferencias manualmente).</li>
+    </ul>
+  </div>
+
+  <!-- Punto 6 -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <h3 class="section-title">6. El problema de mercado: Unit Economics y fricción en el piso de entrenamiento</h3>
+      <span class="severity-pill sev-high">Riesgo Alto · Viabilidad Comercial</span>
+    </div>
+    <ul>
+      <li><strong>Arquitectura Single-Tenant inviable como negocio SaaS:</strong> El planteo actual requiere desplegar y mantener una base de datos y contenedores dedicados por gimnasio. En Latinoamérica, un gimnasio independiente paga entre USD 20 y USD 40 mensuales por plataformas <em>multi-tenant</em> consolidadas (<em>Crossfy, MisActividades, Fitco</em>) que ya incluyen app nativa en tiendas, débito automático, control de molinetes y facturación fiscal (AFIP/ARCA). Administrar servidores aislados por cliente destruye el margen operativo.</li>
+      <li><strong>Fricción real del socio entrenando:</strong> Los gimnasios suelen operar en locales profundos o galpones con mala cobertura 4G. El socio tiene las manos transpiradas, escucha música y necesita registrar cargas en segundos. Si la web-app no cuenta con un <em>Service Worker</em> y cola de sincronización offline real, a la tercera serie que pierda por falta de señal cerrará el navegador y volverá a WhatsApp o notas locales.</li>
+    </ul>
+  </div>
+
+  <!-- Tabla Resumen -->
+  <h2>Matriz Ejecutiva de Puntos de Quiebre</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">Vector de Falla</th>
+        <th style="width: 28%;">Ubicación en Código</th>
+        <th style="width: 36%;">Efecto en Operación Real</th>
+        <th style="width: 14%;">Impacto</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Escritura Optimista Silenciada</strong></td>
+        <td><code>lib/store.tsx</code> (<code>.catch(() =&gt; {})</code>)</td>
+        <td>Pagos cobrados en mostrador que figuran en la PC local pero desaparecen de MySQL.</td>
+        <td><strong>Pérdida de Caja</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Rol Único de Gestión</strong></td>
+        <td><code>Rol.java</code> / <code>PagoController.java</code></td>
+        <td>Recepcionistas y profesores pueden borrar pagos en efectivo sin dejar rastro.</td>
+        <td><strong>Fraude Interno</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Rate Limit &amp; Caché en Tótem</strong></td>
+        <td><code>AsistenciaController.java</code> / <code>totem/page.tsx</code></td>
+        <td>Bloqueo HTTP 429 al socio N° 21 en hora pico; morosos ingresan sin freno real.</td>
+        <td><strong>Caída en Puerta</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Consultas N+1 y Sin Paginación</strong></td>
+        <td><code>AlumnoService</code> / <code>AsistenciaService</code></td>
+        <td>+1.000 queries SQL por carga y desborde de 5 MB en <code>localStorage</code> al año.</td>
+        <td><strong>Degradación</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Vigencia Mensual Rígida</strong></td>
+        <td><code>Pago.java</code> (<code>periodoMes</code> único)</td>
+        <td>Socios con plan trimestral o anual pasan a estado <code>MOROSO</code> al día 32.</td>
+        <td><strong>Rechazo Comercial</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Conclusión -->
+  <div class="callout callout-slate">
+    <strong>Veredicto Final:</strong> Hoy ATLAS Gym es un <strong>excelente MVP visual y académico</strong>, pero todavía razona como una maqueta de frontend conectada a una base de datos, no como un sistema transaccional diseñado para resistir empleados desleales, microcortes de red, abonos trimestrales y 200 personas ingresando transpiradas a las 19:00 hs. Convertir esta lista crítica en la hoja de ruta de ingeniería es exactamente lo que separa una demo universitaria de un producto comercial vendible.
+  </div>
+
+  <div class="footer-note">
+    <span>ATLAS Gym Platform · Informe de Auditoría Escéptica (Red-Team Review)</span>
+    <span>Octubre 2026</span>
+  </div>
+
+</body>
+</html>

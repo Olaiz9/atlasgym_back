@@ -1,0 +1,37 @@
+# ============================================================================
+# ATLAS Gym - Configuración de Reverse Proxy Caddy con TLS automático
+# ============================================================================
+# En producción, configurar ATLAS_DOMAIN en .env con el dominio real (ej. gym.atlas.com.ar)
+# o dejar 'localhost' / ':80' para pruebas locales o intranet.
+# Caddy genera y renueva certificados SSL/TLS automáticamente vía Let's Encrypt / ZeroSSL.
+# ============================================================================
+
+{$ATLAS_DOMAIN:localhost} {
+    encode zstd gzip
+
+    # Cabeceras de seguridad HTTP
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # API directa de Spring Boot (preserva IP cliente con X-Forwarded-For)
+    handle /api/* {
+        reverse_proxy backend:8080 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Aplicación web Next.js (y proxy same-origin /backend-api/*)
+    handle {
+        reverse_proxy frontend:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}

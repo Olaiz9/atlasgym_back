@@ -50,6 +50,7 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${atlas.seed.enabled:true}")
     private boolean seedEnabled;
 
+
     private final UsuarioRepository usuarioRepository;
     private final AlumnoRepository alumnoRepository;
     private final PlanRepository planRepository;

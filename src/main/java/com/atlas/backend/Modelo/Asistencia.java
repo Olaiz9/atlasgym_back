@@ -6,7 +6,8 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "asistencias", indexes = {
-    @Index(name = "idx_asistencias_alumno_fecha", columnList = "alumno_id, fecha")
+    @Index(name = "idx_asistencias_alumno_fecha", columnList = "alumno_id, fecha"),
+    @Index(name = "idx_asistencias_fecha_hora", columnList = "fecha, hora")
 })
 public class Asistencia {
 
@@ -31,6 +32,9 @@ public class Asistencia {
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_cuenta", length = 30)
     private EstadoCuenta estadoCuenta;
+
+    @Column(name = "client_event_id", length = 64, unique = true)
+    private String clientEventId;
 
     public Asistencia() {
     }
@@ -109,5 +113,13 @@ public class Asistencia {
 
     public void setEstadoCuenta(EstadoCuenta estadoCuenta) {
         this.estadoCuenta = estadoCuenta;
+    }
+
+    public String getClientEventId() {
+        return clientEventId;
+    }
+
+    public void setClientEventId(String clientEventId) {
+        this.clientEventId = clientEventId;
     }
 }

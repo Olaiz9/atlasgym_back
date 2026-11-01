@@ -14,9 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthService {
+
+    private static final int MAX_INTENTOS_FALLIDOS = 5;
+    private static final int MAX_INTENTOS_POR_IP_GLOBAL = 25;
+    private static final long BLOQUEO_MS = 2 * 60 * 1000L; // 2 minutos
+
+    private record RegistroIntentos(int cantidad, long bloqueadoHastaMs) {}
+
+    private final ConcurrentHashMap<String, RegistroIntentos> intentosPorIdentificador = new ConcurrentHashMap<>();
 
     private final UsuarioRepository usuarioRepository;
     private final AlumnoRepository alumnoRepository;
@@ -35,13 +44,34 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        String identificador = request.email() != null ? request.email().trim() : "";
-        Usuario usuario = resolverUsuarioPorIdentificador(identificador)
-                .orElseThrow(() -> new BusinessException("Credenciales inválidas", 401));
+        return login(request, "local");
+    }
 
-        if (!passwordEncoder.matches(request.password(), usuario.getPassword())) {
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request, String clientIp) {
+        String identificador = request.email() != null ? request.email().trim() : "";
+        String ipNormalizada = (clientIp != null && !clientIp.isBlank()) ? clientIp.trim() : "local";
+        String clavePar = ipNormalizada + "|" + identificador.toLowerCase();
+        String claveIpGlobal = "ip|" + ipNormalizada;
+
+        verificarBloqueoFuerzaBruta(claveIpGlobal);
+        verificarBloqueoFuerzaBruta(clavePar);
+
+        Optional<Usuario> usuarioOpt = resolverUsuarioPorIdentificador(identificador);
+        if (usuarioOpt.isEmpty()) {
+            registrarIntentoFallido(clavePar, MAX_INTENTOS_FALLIDOS);
+            registrarIntentoFallido(claveIpGlobal, MAX_INTENTOS_POR_IP_GLOBAL);
             throw new BusinessException("Credenciales inválidas", 401);
         }
+
+        Usuario usuario = usuarioOpt.get();
+        if (!passwordEncoder.matches(request.password(), usuario.getPassword())) {
+            registrarIntentoFallido(clavePar, MAX_INTENTOS_FALLIDOS);
+            registrarIntentoFallido(claveIpGlobal, MAX_INTENTOS_POR_IP_GLOBAL);
+            throw new BusinessException("Credenciales inválidas", 401);
+        }
+
+        intentosPorIdentificador.remove(clavePar);
 
         if (!usuario.isActivo()) {
             throw new BusinessException("La cuenta de usuario se encuentra inactiva", 403);
@@ -54,11 +84,10 @@ public class AuthService {
         }
 
         Long alumnoId = null;
-        String nombreMostrar = usuario.getEmail();
+        String nombreMostrar = resolverNombreMostrar(usuario, alumnoVinculado);
 
         if (alumnoVinculado != null) {
             alumnoId = alumnoVinculado.getIdAlumno();
-            nombreMostrar = alumnoVinculado.getNombre();
         }
 
         String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
@@ -71,8 +100,65 @@ public class AuthService {
                 usuario.getEmail(),
                 rolNombre,
                 alumnoId,
-                usuario.getFotoUrl()
+                usuario.getFotoUrl(),
+                usuario.isRequiereCambioPassword()
         );
+    }
+
+    private String resolverNombreMostrar(Usuario usuario, Alumno alumnoVinculado) {
+        if (alumnoVinculado != null && alumnoVinculado.getNombre() != null && !alumnoVinculado.getNombre().isBlank()) {
+            return alumnoVinculado.getNombre();
+        }
+        if (usuario.getNombreMostrar() != null && !usuario.getNombreMostrar().isBlank()) {
+            return usuario.getNombreMostrar();
+        }
+        return usuario.getEmail();
+    }
+
+    private void verificarBloqueoFuerzaBruta(String claveIntento) {
+        if (claveIntento.isEmpty()) return;
+        if (intentosPorIdentificador.size() > 4096) {
+            long ahoraLimpieza = System.currentTimeMillis();
+            intentosPorIdentificador.entrySet().removeIf(
+                    e -> e.getValue().bloqueadoHastaMs() > 0 && ahoraLimpieza >= e.getValue().bloqueadoHastaMs()
+            );
+        }
+        RegistroIntentos registro = intentosPorIdentificador.get(claveIntento);
+        if (registro != null && registro.bloqueadoHastaMs() > 0) {
+            long ahora = System.currentTimeMillis();
+            if (ahora < registro.bloqueadoHastaMs()) {
+                long segundosRestantes = Math.max(1, (registro.bloqueadoHastaMs() - ahora) / 1000);
+                throw new BusinessException(
+                        "Demasiados intentos fallidos desde esta dirección. Por seguridad, aguardá " + segundosRestantes + " segundos antes de volver a intentar.",
+                        429
+                );
+            } else {
+                intentosPorIdentificador.remove(claveIntento);
+            }
+        }
+    }
+
+    private void registrarIntentoFallido(String claveIntento, int maxIntentos) {
+        if (claveIntento.isEmpty()) return;
+        intentosPorIdentificador.compute(claveIntento, (k, actual) -> {
+            int nuevosIntentos = (actual == null ? 0 : actual.cantidad()) + 1;
+            if (nuevosIntentos >= maxIntentos) {
+                return new RegistroIntentos(nuevosIntentos, System.currentTimeMillis() + BLOQUEO_MS);
+            }
+            return new RegistroIntentos(nuevosIntentos, 0L);
+        });
+    }
+
+    public void limpiarIntentosFallidos(String claveIntento) {
+        if (claveIntento != null) {
+            String sufijo = claveIntento.toLowerCase().trim();
+            if ("*".equals(sufijo)) {
+                intentosPorIdentificador.clear();
+                return;
+            }
+            intentosPorIdentificador.remove(sufijo);
+            intentosPorIdentificador.keySet().removeIf(k -> k.endsWith("|" + sufijo));
+        }
     }
 
     @Transactional(readOnly = true)
@@ -80,21 +166,10 @@ public class AuthService {
         Usuario usuario = resolverUsuarioPorIdentificador(email)
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado con email: " + email, 404));
 
-        Long alumnoId = null;
-        String nombreMostrar = usuario.getEmail();
-
-        if (usuario.getAlumno() != null) {
-            alumnoId = usuario.getAlumno().getIdAlumno();
-            nombreMostrar = usuario.getAlumno().getNombre();
-        } else {
-            var alumnoOpt = alumnoRepository.findByUsuarioId(usuario.getId());
-            if (alumnoOpt.isPresent()) {
-                Alumno a = alumnoOpt.get();
-                alumnoId = a.getIdAlumno();
-                nombreMostrar = a.getNombre();
-            }
-        }
-
+        Alumno alumnoVinculado = usuario.getAlumno() != null ? usuario.getAlumno()
+                : alumnoRepository.findByUsuarioId(usuario.getId()).orElse(null);
+        Long alumnoId = alumnoVinculado != null ? alumnoVinculado.getIdAlumno() : null;
+        String nombreMostrar = resolverNombreMostrar(usuario, alumnoVinculado);
         String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
 
         return new LoginResponse(
@@ -104,7 +179,8 @@ public class AuthService {
                 usuario.getEmail(),
                 rolNombre,
                 alumnoId,
-                usuario.getFotoUrl()
+                usuario.getFotoUrl(),
+                usuario.isRequiereCambioPassword()
         );
     }
 
@@ -117,15 +193,35 @@ public class AuthService {
             if (cambios.containsKey("password")) {
                 String nuevaPassword = cambios.get("password");
                 if (nuevaPassword != null && !nuevaPassword.isBlank()) {
+                    String passwordActual = cambios.get("passwordActual");
+                    if (passwordActual == null || passwordActual.isBlank()
+                            || !passwordEncoder.matches(passwordActual.trim(), usuario.getPassword())) {
+                        throw new BusinessException("La contraseña actual ingresada es incorrecta.", 400);
+                    }
                     if (nuevaPassword.trim().length() < 6) {
-                        throw new BusinessException("La contraseña debe tener al menos 6 caracteres.", 400);
+                        throw new BusinessException("La nueva contraseña debe tener al menos 6 caracteres.", 400);
                     }
                     usuario.setPassword(passwordEncoder.encode(nuevaPassword.trim()));
+                    usuario.setRequiereCambioPassword(false);
+                }
+            }
+            if (cambios.containsKey("nombre")) {
+                String nuevoNombre = cambios.get("nombre");
+                if (nuevoNombre != null && !nuevoNombre.isBlank()) {
+                    usuario.setNombreMostrar(nuevoNombre.trim());
                 }
             }
             if (cambios.containsKey("fotoUrl")) {
                 String fotoUrl = cambios.get("fotoUrl");
-                usuario.setFotoUrl(fotoUrl != null && !fotoUrl.isBlank() ? fotoUrl.trim() : null);
+                if (fotoUrl != null && !fotoUrl.isBlank()) {
+                    String limpia = fotoUrl.trim();
+                    if (!esUrlImagenSegura(limpia)) {
+                        throw new BusinessException("La URL de la foto debe comenzar con https://, http:// o /", 400);
+                    }
+                    usuario.setFotoUrl(limpia);
+                } else {
+                    usuario.setFotoUrl(null);
+                }
             }
         }
         usuarioRepository.save(usuario);
@@ -140,7 +236,7 @@ public class AuthService {
         }
 
         Long alumnoId = alumnoVinculado != null ? alumnoVinculado.getIdAlumno() : null;
-        String nombreMostrar = alumnoVinculado != null ? alumnoVinculado.getNombre() : usuario.getEmail();
+        String nombreMostrar = resolverNombreMostrar(usuario, alumnoVinculado);
         String rolNombre = usuario.getRol() != null ? usuario.getRol().name() : "ALUMNO";
 
         return new LoginResponse(
@@ -150,8 +246,24 @@ public class AuthService {
                 usuario.getEmail(),
                 rolNombre,
                 alumnoId,
-                usuario.getFotoUrl()
+                usuario.getFotoUrl(),
+                usuario.isRequiereCambioPassword()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public String resolverEtiquetaOperador(String email) {
+        if (email == null || email.isBlank()) return "ADMIN";
+        return resolverUsuarioPorIdentificador(email)
+                .map(u -> (u.getNombreMostrar() != null && !u.getNombreMostrar().isBlank())
+                        ? u.getNombreMostrar().trim()
+                        : u.getEmail())
+                .orElse(email);
+    }
+
+    private boolean esUrlImagenSegura(String url) {
+        String lower = url.toLowerCase();
+        return lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("/");
     }
 
     @Transactional(readOnly = true)
