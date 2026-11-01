@@ -290,9 +290,9 @@ public class AlumnoService {
                 .setParameter("aid", id).executeUpdate();
 
         // 4. Eliminar sesiones de entrenamiento y series
-        em.createNativeQuery("DELETE FROM registros_series WHERE sesion_ejercicio_id IN (SELECT id FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid))")
+        em.createNativeQuery("DELETE FROM registros_series WHERE sesion_ejercicio_id IN (SELECT id FROM sesiones_ejercicios WHERE sesion_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid))")
                 .setParameter("aid", id).executeUpdate();
-        em.createNativeQuery("DELETE FROM sesiones_ejercicios WHERE sesion_entrenamiento_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid)")
+        em.createNativeQuery("DELETE FROM sesiones_ejercicios WHERE sesion_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid)")
                 .setParameter("aid", id).executeUpdate();
         em.createNativeQuery("DELETE FROM sesiones_entrenamiento WHERE alumno_id = :aid")
                 .setParameter("aid", id).executeUpdate();
