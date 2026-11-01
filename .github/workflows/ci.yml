@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Atrapa restos de conflictos de merge (<<<<<<<, =======, >>>>>>>) en cualquier archivo,
       # incluso en los que ningun test ejecuta (ej.: Dockerfile).
@@ -30,7 +30,7 @@ jobs:
           fi
 
       # Misma version de Java que la imagen de produccion (eclipse-temurin:17).
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Solo verifica que la imagen de produccion se construya; no la publica en ningun lado.
       - name: Construir imagen
         run: docker build -t atlasgym-back:ci .
