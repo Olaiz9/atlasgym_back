@@ -229,6 +229,10 @@ public class AlumnoService {
         } else {
             if (existenteOpt.isPresent()) {
                 Usuario existente = existenteOpt.get();
+                // Nunca reutilizar la cuenta de un titular: se la convertiria en ALUMNO y se le cambiaria la clave
+                if (existente.getRol() != Rol.ALUMNO) {
+                    throw new BusinessException("El usuario '" + usuarioLimpio + "' pertenece a otra cuenta.", 409);
+                }
                 var otroAlumno = alumnoRepository.findByUsuarioId(existente.getId());
                 if (otroAlumno.isPresent() && !otroAlumno.get().getIdAlumno().equals(alumno.getIdAlumno())) {
                     throw new BusinessException("El usuario '" + usuarioLimpio + "' ya está asignado a otro socio.", 409);
