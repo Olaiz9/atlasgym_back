@@ -20,6 +20,8 @@ import com.atlas.backend.Repositorio.PagoRepository;
 import com.atlas.backend.Repositorio.PlanRepository;
 import com.atlas.backend.Repositorio.RutinaRepository;
 import com.atlas.backend.Repositorio.UsuarioRepository;
+import com.atlas.backend.Dto.ClaveTemporalResponseDto;
+import com.atlas.backend.Seguridad.GeneradorClaves;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
@@ -126,13 +128,14 @@ public class AlumnoService {
         }
 
         // DECISION PENDIENTE 4 (credenciales del alumno): ramaBruno las crea recien en el
-        // primer pago (POST /api/alumnos/{id}/credenciales); ramaLucas en el alta, con el DNI
-        // como clave inicial. Mientras el equipo decide se conserva el alta con usuario:
-        // el endpoint de Bruno actualiza ese usuario si el titular quiere otro nombre o clave.
-        // Generar automáticamente el nombre de usuario y cuenta de acceso para el nuevo inscripto
+        // primer pago (POST /api/alumnos/{id}/credenciales); ramaLucas en el alta.
+        // Mientras el equipo decide se conserva el alta con usuario.
+        // Decision 2026-11-01 (modo mixto): la cuenta nace con una clave al azar que NADIE conoce
+        // (antes era el DNI, y cualquiera que lo supiera podia entrar antes que el socio).
+        // El acceso se entrega desde Finanzas (primer pago) o con "Generar clave temporal".
+        // Los socios de la importacion masiva (Dia Cero) si arrancan con el DNI: ver importarMasivo.
         String usernameGenerado = generarUsernameUnico(dto.nombre(), dto.dni(), null);
-        String dniSoloNumeros = dto.dni().replaceAll("\\D", "");
-        String passwordInicial = dniSoloNumeros.isEmpty() ? "alumno123" : dniSoloNumeros;
+        String passwordInicial = GeneradorClaves.claveTemporal();
 
         Usuario nuevoUsuario = new Usuario();
         nuevoUsuario.setEmail(usernameGenerado);
@@ -262,26 +265,22 @@ public class AlumnoService {
     }
 
     /**
-     * Blanquea en 1 clic la contraseña del socio a su DNI numérico y activa el cambio obligatorio
-     * de clave en su próximo inicio de sesión.
+     * "Generar clave temporal" (antes "blanquear a DNI"): para dar el primer acceso o cuando el
+     * socio olvida su clave. Genera una clave al azar, la devuelve UNA sola vez para que el
+     * titular se la pase al socio, y le exige cambiarla en su proximo ingreso.
      */
     @Transactional
-    public AlumnoResponseDto blanquearClaveADni(Long id) {
+    public ClaveTemporalResponseDto generarClaveTemporal(Long id) {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
-        String dniSoloNumeros = alumno.getDni() != null ? alumno.getDni().replaceAll("\\D", "") : "";
-        String claveReset = dniSoloNumeros.isEmpty() ? "alumno123" : dniSoloNumeros;
+        String claveTemporal = GeneradorClaves.claveTemporal();
         String username = alumno.getUsuario() != null && alumno.getUsuario().getEmail() != null
                 ? alumno.getUsuario().getEmail()
                 : generarUsernameUnico(alumno.getNombre(), alumno.getDni(), null);
 
-        AlumnoResponseDto actualizado = asignarCredenciales(id, username, claveReset);
-        Alumno recargado = alumnoRepository.findById(id).orElse(alumno);
-        if (recargado.getUsuario() != null) {
-            recargado.getUsuario().setRequiereCambioPassword(true);
-            usuarioRepository.save(recargado.getUsuario());
-        }
-        return actualizado;
+        // asignarCredenciales ya deja requiereCambioPassword = true
+        AlumnoResponseDto actualizado = asignarCredenciales(id, username, claveTemporal);
+        return new ClaveTemporalResponseDto(actualizado, username, claveTemporal);
     }
 
     @Transactional
@@ -761,6 +760,11 @@ public class AlumnoService {
         );
     }
 
+    /**
+     * Cuenta de los socios de la importacion masiva (Dia Cero). Decision 2026-11-01 (modo mixto):
+     * a diferencia del alta individual, arrancan con el DNI como clave para que todo el padron
+     * pueda entrar desde el primer dia; el cambio en el primer ingreso es obligatorio.
+     */
     private Usuario crearUsuarioInicialSocio(String nombre, String dni, String celular) {
         String username = generarUsernameUnico(nombre, dni, null);
         Usuario nuevoUsuario = new Usuario();

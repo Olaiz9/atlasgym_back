@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -360,7 +361,7 @@ class SeguridadHardeningTest {
     }
 
     @Test
-    void socioNuevoYBlanqueoClave_exigeCambioPasswordEnPrimerLoginYLimpiaBanderaAlActualizar() throws Exception {
+    void socioNuevoYClaveTemporal_elDniNoAbreLaCuentaYLaClaveTemporalExigeCambio() throws Exception {
         Usuario admin = new Usuario();
         admin.setEmail("admin-alta@atlasgym.com");
         admin.setPassword(passwordEncoder.encode("ClaveAdmin123"));
@@ -385,45 +386,76 @@ class SeguridadHardeningTest {
 
         long alumnoId = json.readTree(creadoBody).get("id").asLong();
 
-        // 1. Primer login del socio con su DNI -> requiereCambioPassword = true
-        String login1 = mvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of(
-                                "email", "48123456",
-                                "password", "48123456"
-                        ))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.requiereCambioPassword").value(true))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+        try {
+            // 1. Recien dado de alta, el DNI NO abre la cuenta (antes cualquiera que lo supiera entraba)
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of(
+                                    "email", "48123456",
+                                    "password", "48123456"
+                            ))))
+                    .andExpect(status().isUnauthorized());
 
-        String tokenSocio = json.readTree(login1).get("token").asText();
+            // 2. El titular genera una clave temporal: viene en la respuesta, una sola vez
+            String temporalBody = mvc.perform(post("/api/alumnos/{id}/blanquear-clave", alumnoId)
+                            .header("Authorization", "Bearer " + tokenAdmin))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.alumno.id").value(alumnoId))
+                    .andExpect(jsonPath("$.usuario").isNotEmpty())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+            String usuario = json.readTree(temporalBody).get("usuario").asText();
+            String claveTemporal = json.readTree(temporalBody).get("claveTemporal").asText();
+            assertThat(claveTemporal).hasSize(8).isNotEqualTo("48123456");
 
-        // 2. El socio define su clave personal -> requiereCambioPassword pasa a false
-        mvc.perform(put("/api/auth/perfil")
-                        .header("Authorization", "Bearer " + tokenSocio)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of(
-                                "passwordActual", "48123456",
-                                "password", "MiClavePrivada2026"
-                        ))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.requiereCambioPassword").value(false));
+            // 3. El socio entra con la clave temporal -> debe cambiarla
+            String login1 = mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of(
+                                    "email", usuario,
+                                    "password", claveTemporal
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.requiereCambioPassword").value(true))
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+            String tokenSocio = json.readTree(login1).get("token").asText();
 
-        // 3. El socio olvida su clave y recepción la blanquea en 1 clic a su DNI -> vuelve requiereCambioPassword = true
-        mvc.perform(post("/api/alumnos/{id}/blanquear-clave", alumnoId)
-                        .header("Authorization", "Bearer " + tokenAdmin))
-                .andExpect(status().isOk());
+            // 4. Define su clave personal -> requiereCambioPassword pasa a false
+            mvc.perform(put("/api/auth/perfil")
+                            .header("Authorization", "Bearer " + tokenSocio)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of(
+                                    "passwordActual", claveTemporal,
+                                    "password", "MiClavePrivada2026"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.requiereCambioPassword").value(false));
 
-        mvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of(
-                                "email", "48123456",
-                                "password", "48123456"
-                        ))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.requiereCambioPassword").value(true));
+            // 5. Si la olvida, una nueva clave temporal reemplaza a la anterior y vuelve a exigir cambio
+            String otraBody = mvc.perform(post("/api/alumnos/{id}/blanquear-clave", alumnoId)
+                            .header("Authorization", "Bearer " + tokenAdmin))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+            String otraClave = json.readTree(otraBody).get("claveTemporal").asText();
+            assertThat(otraClave).isNotEqualTo(claveTemporal);
+
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("email", usuario, "password", "MiClavePrivada2026"))))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("email", usuario, "password", otraClave))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.requiereCambioPassword").value(true));
+        } finally {
+            authService.limpiarIntentosFallidos("*");
+        }
     }
 
     private Rutina crearRutina(String nombre, boolean esGenerica) {

@@ -4,6 +4,7 @@ import com.atlas.backend.Dto.AlumnoImportRequestDto;
 import com.atlas.backend.Dto.AlumnoImportResponseDto;
 import com.atlas.backend.Dto.AlumnoRequestDto;
 import com.atlas.backend.Dto.AlumnoResponseDto;
+import com.atlas.backend.Dto.ClaveTemporalResponseDto;
 import com.atlas.backend.Servicio.AlumnoService;
 import com.atlas.backend.Servicio.AuthService;
 import jakarta.validation.Valid;
@@ -151,10 +152,10 @@ public class AlumnoController {
         return ResponseEntity.ok(actualizado);
     }
 
+    /** Genera una clave temporal al azar y la devuelve una sola vez (ver AlumnoService). */
     @PostMapping("/{id}/blanquear-clave")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<AlumnoResponseDto> blanquearClaveADni(@PathVariable Long id) {
-        AlumnoResponseDto actualizado = alumnoService.blanquearClaveADni(id);
-        return ResponseEntity.ok(actualizado);
+    public ResponseEntity<ClaveTemporalResponseDto> generarClaveTemporal(@PathVariable Long id) {
+        return ResponseEntity.ok(alumnoService.generarClaveTemporal(id));
     }
 }
