@@ -70,6 +70,10 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/backend-api}
+        # PIN de 4 digitos para habilitar la tablet del totem (vacio = 1234 de fabrica)
+        NEXT_PUBLIC_TOTEM_PIN: ${ATLAS_TOTEM_PIN:-}
+        # Commit que se muestra en el login; lo completa scripts/actualizar.sh
+        GIT_COMMIT: ${ATLAS_FRONT_COMMIT:-}
     container_name: atlas-frontend
     restart: unless-stopped
     depends_on:
