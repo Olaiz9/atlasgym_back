@@ -39,9 +39,13 @@ function Check($etapa, $desc, [bool]$cond, $detalle = "") {
     Write-Host $m; $script:log += $m
 }
 
-$hoy = (Get-Date).ToString("yyyy-MM-dd")
-$mesActual = (Get-Date).ToString("yyyy-MM")
-$mesSig = (Get-Date).AddMonths(1).ToString("yyyy-MM")
+# "Hoy" en hora argentina (UTC-3 fija, sin horario de verano), igual que el servidor.
+# Con Get-Date a secas, el CI (que corre en UTC) entre las 21 y las 24 hs de Argentina
+# creia que ya era el dia siguiente y fallaban el arqueo y las asistencias de "hoy".
+$ahoraAR = [DateTime]::UtcNow.AddHours(-3)
+$hoy = $ahoraAR.ToString("yyyy-MM-dd")
+$mesActual = $ahoraAR.ToString("yyyy-MM")
+$mesSig = $ahoraAR.AddMonths(1).ToString("yyyy-MM")
 $totemH = @{ "X-Totem-Secret" = $TotemSecret }
 
 Write-Host "`n=== E4 · Identidad ==="
@@ -107,7 +111,7 @@ $pc = Call GET "/api/asistencias/totem/padron-cache" $null $null $totemH
 Check "E3" "Padrón caché CON secreto -> lista mínima" ($pc.Status -eq 200) "status=$($pc.Status)"
 Write-Host "        Padrón: $($pc.Raw)"
 $evId = [guid]::NewGuid().ToString()
-$ayer = (Get-Date).AddDays(-1).ToString("yyyy-MM-dd")
+$ayer = $ahoraAR.AddDays(-1).ToString("yyyy-MM-dd")
 $sync = @{ eventos = @(@{ clientEventId = $evId; dni = "30111222"; fecha = $ayer; hora = "19:30:00" }) }
 $s1 = Call POST "/api/asistencias/totem/sync" $sync $null $totemH
 Write-Host "        Sync #1: $($s1.Raw)"
