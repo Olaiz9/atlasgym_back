@@ -1,10 +1,13 @@
 package com.atlas.backend;
 
+import com.atlas.backend.Dto.AlumnoImportItemDto;
+import com.atlas.backend.Dto.AlumnoImportResponseDto;
 import com.atlas.backend.Dto.AlumnoResponseDto;
 import com.atlas.backend.Modelo.EstadoCuenta;
 import com.atlas.backend.Modelo.Plan;
 import com.atlas.backend.Modelo.Rol;
 import com.atlas.backend.Modelo.Usuario;
+import com.atlas.backend.Repositorio.PagoRepository;
 import com.atlas.backend.Repositorio.PlanRepository;
 import com.atlas.backend.Repositorio.UsuarioRepository;
 import com.atlas.backend.Seguridad.JwtService;
@@ -50,6 +53,9 @@ class AlumnoImportacionMasivaTest {
 
     @Autowired
     private AlumnoService alumnoService;
+
+    @Autowired
+    private PagoRepository pagoRepository;
 
     @Test
     void importarPadronMasivo_creaSociosAsignaPlanesSiembraPagosInicialesYExigeCambioDeClave() throws Exception {
@@ -116,7 +122,8 @@ class AlumnoImportacionMasivaTest {
                 .andExpect(jsonPath("$.actualizados").value(1))
                 .andExpect(jsonPath("$.pagosInicialesRegistrados").value(2))
                 .andExpect(jsonPath("$.omitidos").value(1))
-                .andExpect(jsonPath("$.advertencias.length()").value(1));
+                .andExpect(jsonPath("$.advertencias.length()").value(2))
+                .andExpect(jsonPath("$.advertencias[0]").value(org.hamcrest.Matchers.containsString("repetido")));
 
         AlumnoResponseDto camila = alumnoService.buscarPorDni("42111222");
         assertThat(camila.nombre()).isEqualTo("Camila Sosa Actualizada");
@@ -135,5 +142,81 @@ class AlumnoImportacionMasivaTest {
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.requiereCambioPassword").value(true));
+    }
+
+    // ---- Planilla "sucia" del Día Cero: cada caso es un error real que se puede colar del Excel ----
+
+    private Plan crearPlan(String nombre, String precio) {
+        Plan plan = new Plan();
+        plan.setNombre(nombre);
+        plan.setPrecio(new BigDecimal(precio));
+        plan.setDiaPorSemana("3");
+        plan.setActivo(true);
+        return planRepository.saveAndFlush(plan);
+    }
+
+    private AlumnoImportItemDto fila(String nombre, String dni, String email, String plan, String periodo, BigDecimal monto) {
+        return new AlumnoImportItemDto(nombre, dni, null, email, plan, periodo, monto, null);
+    }
+
+    @Test
+    void reimportarSinPlanOConPlanDesconocido_noLePisaElPlanAlSocioYAvisa() {
+        crearPlan("Plan Por Defecto Import", "15000"); // se crea primero: seria el plan "por defecto"
+        Plan tresDias = crearPlan("Tres Dias Import", "20000");
+
+        alumnoService.importarPadronMasivo(List.of(fila("Ana Paz", "40111222", null, "Tres Dias Import", null, null)), "test");
+        assertThat(alumnoService.buscarPorDni("40111222").planId()).isEqualTo(tresDias.getIdPlan());
+
+        // Segunda carga de la misma planilla, sin la columna Plan: el socio conserva su plan
+        alumnoService.importarPadronMasivo(List.of(fila("Ana Paz", "40111222", null, null, null, null)), "test");
+        assertThat(alumnoService.buscarPorDni("40111222").planId()).isEqualTo(tresDias.getIdPlan());
+
+        // Plan con un nombre que no existe: se conserva el plan y se avisa cuál no se encontró
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                List.of(fila("Ana Paz", "40111222", null, "Zumba Kids", null, null)), "test");
+        assertThat(alumnoService.buscarPorDni("40111222").planId()).isEqualTo(tresDias.getIdPlan());
+        assertThat(res.advertencias()).anyMatch(a -> a.contains("Zumba Kids"));
+    }
+
+    @Test
+    void socioNuevoConPlanDesconocido_recibeElPlanPorDefectoPeroQuedaAvisado() {
+        crearPlan("Pase Libre Import", "30000");
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                List.of(fila("Beto Luna", "40222333", null, "Plan Inventado", null, null)), "test");
+        assertThat(res.creados()).isEqualTo(1);
+        assertThat(res.advertencias()).anyMatch(a -> a.contains("Plan Inventado"));
+    }
+
+    @Test
+    void periodoMuyLejanoEnElFuturo_noSiembraPagoYAvisa() {
+        crearPlan("Pase Libre Futuro", "30000");
+        String lejano = YearMonth.now().plusMonths(13).toString();
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                List.of(fila("Caro Rios", "40333444", null, "Pase Libre Futuro", lejano, null)), "test");
+        assertThat(res.pagosInicialesRegistrados()).isZero();
+        assertThat(res.advertencias()).anyMatch(a -> a.contains(lejano));
+        Long id = alumnoService.buscarPorDni("40333444").id();
+        assertThat(pagoRepository.findByAlumnoIdOrderByFechaDesc(id)).isEmpty();
+    }
+
+    @Test
+    void sinMontoYConPlanSinPrecio_noInventaUnMontoEnLaCaja() {
+        crearPlan("Plan Becado Import", "0");
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                List.of(fila("Dani Sol", "40444555", null, "Plan Becado Import", YearMonth.now().toString(), null)), "test");
+        Long id = alumnoService.buscarPorDni("40444555").id();
+        assertThat(pagoRepository.findByAlumnoIdOrderByFechaDesc(id))
+                .noneMatch(p -> p.getMonto().compareTo(new BigDecimal("25000")) == 0);
+        assertThat(res.pagosInicialesRegistrados()).isZero();
+        assertThat(res.advertencias()).anyMatch(a -> a.contains("monto"));
+    }
+
+    @Test
+    void emailInvalidoDeLaPlanilla_noSeGuardaYSeAvisa() {
+        crearPlan("Pase Libre Mail", "30000");
+        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
+                List.of(fila("Eva Mar", "40555666", "no tiene", "Pase Libre Mail", null, null)), "test");
+        assertThat(alumnoService.buscarPorDni("40555666").email()).isNull();
+        assertThat(res.advertencias()).anyMatch(a -> a.contains("no tiene"));
     }
 }

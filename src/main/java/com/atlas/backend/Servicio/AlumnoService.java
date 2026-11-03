@@ -627,6 +627,8 @@ public class AlumnoService {
         int omitidos = 0;
         List<String> advertencias = new ArrayList<>();
         String opEtiqueta = (operador != null && !operador.isBlank()) ? operador.trim() : "Importación CSV";
+        // DNI -> primera fila donde apareció, para avisar si la planilla repite un socio
+        Map<String, Integer> filaPorDni = new HashMap<>();
 
         for (int i = 0; i < filas.size(); i++) {
             AlumnoImportItemDto item = filas.get(i);
@@ -646,9 +648,19 @@ public class AlumnoService {
             }
 
             procesados++;
+            Integer filaAnterior = filaPorDni.putIfAbsent(dni, nroFila);
+            if (filaAnterior != null) {
+                advertencias.add("Fila " + nroFila + " (" + nombre + "): el DNI " + dni + " está repetido (ya aparecía en la fila "
+                        + filaAnterior + "). Quedaron los datos de la última fila.");
+            }
             String celular = item.celular() != null && !item.celular().isBlank() ? item.celular().trim() : null;
             String email = item.email() != null && !item.email().isBlank() ? item.email().trim() : null;
-            Plan planResuelto = resolverPlanPorNombre(item.planNombre(), planesDisponibles, planDefault);
+            if (email != null && !EMAIL_VALIDO.matcher(email).matches()) {
+                advertencias.add("Fila " + nroFila + " (" + nombre + "): email '" + email + "' no es válido, se ignoró.");
+                email = null;
+            }
+            boolean pidioPlan = item.planNombre() != null && !item.planNombre().isBlank();
+            Plan planEncontrado = buscarPlanPorNombre(item.planNombre(), planesDisponibles);
 
             var existenteOpt = alumnoRepository.findByDni(dni);
             Alumno alumno;
@@ -667,8 +679,12 @@ public class AlumnoService {
                         advertencias.add("Fila " + nroFila + ": email '" + email + "' ya pertenece a otro socio, se conservó el anterior.");
                     }
                 }
-                if (planResuelto != null) {
-                    alumno.setPlanAlumno(planResuelto);
+                // Sin plan (o con un plan que no existe) el socio conserva el que ya tenía
+                if (planEncontrado != null) {
+                    alumno.setPlanAlumno(planEncontrado);
+                } else if (pidioPlan) {
+                    advertencias.add("Fila " + nroFila + " (" + nombre + "): el plan '" + item.planNombre().trim()
+                            + "' no existe, el socio conservó su plan actual.");
                 }
                 alumno.setActivo(true);
                 if (alumno.getUsuario() != null) {
@@ -694,7 +710,12 @@ public class AlumnoService {
                 alumno.setCelular(celular);
                 alumno.setFechaAlta(LocalDate.now());
                 alumno.setActivo(true);
-                alumno.setPlanAlumno(planResuelto);
+                if (planEncontrado == null && pidioPlan) {
+                    advertencias.add("Fila " + nroFila + " (" + nombre + "): el plan '" + item.planNombre().trim()
+                            + "' no existe, se le asignó '" + (planDefault != null ? planDefault.getNombre() : "ninguno")
+                            + "'. Revisalo en su ficha.");
+                }
+                alumno.setPlanAlumno(planEncontrado != null ? planEncontrado : planDefault);
                 alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular));
                 alumno = alumnoRepository.saveAndFlush(alumno);
                 creados++;
@@ -705,22 +726,34 @@ public class AlumnoService {
                 advertencias.add("Fila " + nroFila + " (" + nombre + "): período '" + item.ultimoPeriodoPago() + "' inválido (usar YYYY-MM).");
             }
 
+            Plan planResuelto = alumno.getPlanAlumno();
+            if (ymUltimoPago != null && ymUltimoPago.isAfter(YearMonth.now().plusMonths(12))) {
+                advertencias.add("Fila " + nroFila + " (" + nombre + "): el último mes pagado '" + ymUltimoPago
+                        + "' está a más de un año en el futuro (¿error de tipeo?). No se cargó la cuota.");
+                ymUltimoPago = null;
+            }
+
             if (ymUltimoPago != null) {
+                final YearMonth periodoImportado = ymUltimoPago;
                 boolean yaTienePeriodo = pagoRepository.findByAlumnoIdOrderByFechaDesc(alumno.getIdAlumno())
                         .stream()
                         .filter(p -> p.getEstadoPago() != EstadoPago.ANULADO)
                         .anyMatch(p -> {
                             YearMonth fin = obtenerPeriodoFinCubierto(p);
-                            return fin != null && !fin.isBefore(ymUltimoPago);
+                            return fin != null && !fin.isBefore(periodoImportado);
                         });
 
-                if (!yaTienePeriodo) {
-                    java.math.BigDecimal montoPago = (item.montoUltimoPago() != null && item.montoUltimoPago().compareTo(java.math.BigDecimal.ZERO) > 0)
-                            ? item.montoUltimoPago()
-                            : (planResuelto != null && planResuelto.getPrecio() != null && planResuelto.getPrecio().compareTo(java.math.BigDecimal.ZERO) > 0
-                                    ? planResuelto.getPrecio()
-                                    : new java.math.BigDecimal("25000"));
+                // Monto: el de la planilla o, si no vino, el precio del plan. Nunca uno inventado.
+                java.math.BigDecimal montoPago = (item.montoUltimoPago() != null && item.montoUltimoPago().compareTo(java.math.BigDecimal.ZERO) > 0)
+                        ? item.montoUltimoPago()
+                        : (planResuelto != null && planResuelto.getPrecio() != null && planResuelto.getPrecio().compareTo(java.math.BigDecimal.ZERO) > 0
+                                ? planResuelto.getPrecio()
+                                : null);
 
+                if (!yaTienePeriodo && montoPago == null) {
+                    advertencias.add("Fila " + nroFila + " (" + nombre + "): falta el monto pagado y su plan no tiene precio."
+                            + " No se cargó la cuota de " + ymUltimoPago + "; registrala a mano desde Caja.");
+                } else if (!yaTienePeriodo) {
                     LocalDate fechaPago = ymUltimoPago.equals(YearMonth.now())
                             ? LocalDate.now()
                             : ymUltimoPago.atDay(Math.min(5, ymUltimoPago.lengthOfMonth()));
@@ -778,9 +811,13 @@ public class AlumnoService {
         return usuarioRepository.save(nuevoUsuario);
     }
 
-    private Plan resolverPlanPorNombre(String nombreInput, List<Plan> planes, Plan planDefault) {
+    private static final java.util.regex.Pattern EMAIL_VALIDO =
+            java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+    /** Busca el plan por nombre (ignorando tildes y mayúsculas). Devuelve null si no hay coincidencia. */
+    private Plan buscarPlanPorNombre(String nombreInput, List<Plan> planes) {
         if (nombreInput == null || nombreInput.isBlank() || planes.isEmpty()) {
-            return planDefault;
+            return null;
         }
         String buscado = normalizarTextoComparacion(nombreInput);
         for (Plan p : planes) {
@@ -790,11 +827,11 @@ public class AlumnoService {
         }
         for (Plan p : planes) {
             String cand = normalizarTextoComparacion(p.getNombre());
-            if (cand.contains(buscado) || buscado.contains(cand)) {
+            if (!cand.isEmpty() && (cand.contains(buscado) || buscado.contains(cand))) {
                 return p;
             }
         }
-        return planDefault;
+        return null;
     }
 
     private String normalizarTextoComparacion(String s) {
