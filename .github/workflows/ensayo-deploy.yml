@@ -56,6 +56,7 @@ jobs:
           ATLAS_ADMIN2_PASSWORD=SmokeTitular2!
           ATLAS_ADMIN2_NOMBRE=Titular 2
           ATLAS_TOTEM_SECRET=secreto-tablet-smoke
+          ATLAS_TOTEM_PIN=4821
           ATLAS_CORS_ALLOWED_ORIGIN=https://localhost
           NEXT_PUBLIC_API_URL=/backend-api
           BACKEND_INTERNAL_URL=http://backend:8080
@@ -66,8 +67,9 @@ jobs:
           FRONTEND_HOST_PORT=3000
           EOF
 
-      - name: Construir y levantar todo (docker compose up)
-        run: docker compose up -d --build
+      # Mismo script que se usa en el servidor real (docs/DEPLOY.md), sin git pull.
+      - name: Construir y levantar todo (scripts/actualizar.sh)
+        run: bash scripts/actualizar.sh --sin-git
 
       # Se entra POR CADDY (https://localhost), como lo harian los titulares.
       - name: Esperar a que el sistema responda por HTTPS
