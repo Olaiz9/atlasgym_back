@@ -283,7 +283,35 @@ Cambia el paso 2 (no se abren puertos) y Caddy pasa a servir HTTP interno. Se do
 
 ---
 
-## 10. Si algo falla
+## 10. Monitoreo (UptimeRobot)
+
+Para detectar caídas del servidor o de la base de datos antes de que los titulares o los socios lo noten, se configura un monitor externo gratuito en **UptimeRobot** apuntando al endpoint de salud.
+
+### 10.1 Configuración del monitor
+1. Crear una cuenta gratuita en [uptimerobot.com](https://uptimerobot.com).
+2. En el panel principal, hacer clic en **+ Add New Monitor**:
+   - **Monitor Type:** `HTTP(s)` (o `Keyword` si se desea validar que el cuerpo contenga `"estado":"ok"`).
+   - **Friendly Name:** `ATLAS Gym - Backend y Base`
+   - **URL (or IP):** `https://<dominio>/api/salud` (ej. `https://gym.ejemplo.com.ar/api/salud`).
+   - **Monitoring Interval:** `5 minutes` (intervalo estándar del plan gratuito).
+   - **Monitor Timeout:** `30 seconds`.
+
+El endpoint `/api/salud` es público, ejecuta un `SELECT 1` en la base de datos y responde:
+- **HTTP 200** si el backend y la base responden correctamente (`{"estado":"ok","base":"ok",...}`).
+- **HTTP 503** si la base de datos no está disponible (`{"estado":"error","base":"error",...}`), lo que activa la alerta en UptimeRobot.
+
+### 10.2 Configuración de alertas y canales
+En **My Settings → Alert Contacts**:
+1. **Email:** Agregar el correo de cada titular (`ATLAS_ADMIN_EMAIL`, `ATLAS_ADMIN2_EMAIL`) y el del equipo técnico.
+2. En la configuración del monitor creado, tildar los contactos de alerta creados.
+
+> **Canales y limitaciones según el plan vigente (fuente oficial: [uptimerobot.com/pricing](https://uptimerobot.com/pricing)):**
+> - **Plan gratuito:** Incluye alertas por **correo electrónico** (Email) y notificaciones push en la app móvil oficial, con intervalos de chequeo cada 5 minutos.
+> - **Canales avanzados (Telegram, Webhooks, Slack, SMS/llamada) o intervalos menores (ej. 60 s):** La disponibilidad de integraciones directas (como Telegram o Webhooks) está sujeta a los términos vigentes del servicio y requiere un plan pago (Solo, Team o PRO). Si la organización cuenta con un plan pago que incluya Telegram, se puede vincular el bot oficial (`@UptimeRobotBot`) como contacto adicional; de lo contrario, utilizar las alertas por email incluidas en el plan gratuito.
+
+---
+
+## 11. Si algo falla
 
 ```bash
 docker compose ps                        # qué contenedores están arriba
