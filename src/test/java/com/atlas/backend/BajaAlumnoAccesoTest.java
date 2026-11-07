@@ -4,7 +4,6 @@ import com.atlas.backend.Modelo.*;
 import com.atlas.backend.Servicio.AlumnoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -90,10 +89,8 @@ class BajaAlumnoAccesoTest {
                 .andExpect(status().isOk());
     }
 
-    // DECISION PENDIENTE 3 (baja de alumnos): este test (Augusto) exige que una segunda baja
-    // CONSERVE al alumno; ramaBruno hace que la segunda baja lo BORRE definitivamente.
-    // Ver borradoDefinitivoConservaPagosComoHistoricos(). Cuando el equipo decida, borrar el que sobre.
-    @Disabled("DECISION PENDIENTE 3: baja logica (Augusto) vs borrado definitivo en 2 pasos (Bruno)")
+    // Decision 3 (2026-11-06): la baja es SIEMPRE logica. El socio que vuelve se reactiva con su
+    // ficha e historial (no se le cobra inscripcion de nuevo), asi que nunca se borra por la API.
     @Test
     void bajaPorApiConservaHistorialYListadosAunqueSeRepita() throws Exception {
         Alumno alumno = crearAlumno();
@@ -146,41 +143,29 @@ class BajaAlumnoAccesoTest {
         verificarBloqueo(id, tokenAlumno);
     }
 
-    // DECISION PENDIENTE 3: cubre el comportamiento de ramaBruno (segunda baja = borrado definitivo).
     @Test
-    void borradoDefinitivoConservaPagosComoHistoricos() throws Exception {
+    void parametroDefinitivoNoBorraAlSocio() throws Exception {
         Alumno alumno = crearAlumno();
         Long id = alumno.getIdAlumno();
         Long usuarioId = alumno.getUsuario().getId();
         Long pagoId = alumno.getPagosAlumnos().get(0).getIdPago();
-        SesionEntrenamiento sesion = new SesionEntrenamiento();
-        sesion.setFecha(LocalDate.of(2026, 6, 10));
-        SesionEjercicio ejercicio = new SesionEjercicio(null, "Sentadilla");
-        ejercicio.addSerie(new RegistroSerie(1, 40.0, 10, true));
-        sesion.addEjercicio(ejercicio);
-        alumno.addSesionEntrenamiento(sesion);
         em.persist(crearUsuario("admin-prueba", Rol.ADMIN));
         em.flush();
         String tokenAdmin = iniciarSesion("admin-prueba");
 
         for (int intento = 0; intento < 2; intento++) {
-            mvc.perform(delete("/api/alumnos/{id}", id)
+            mvc.perform(delete("/api/alumnos/{id}", id).param("definitivo", "true")
                     .header("Authorization", "Bearer " + tokenAdmin))
                     .andExpect(status().isNoContent());
             em.flush();
             em.clear();
         }
 
-        assertThat(em.find(Alumno.class, id)).isNull();
-        assertThat(em.find(Usuario.class, usuarioId)).isNull();
-        Pago pago = em.find(Pago.class, pagoId);
-        assertThat(pago).isNotNull();
-        assertThat(pago.getAlumno()).isNull();
-        assertThat(pago.getAlumnoNombreHistorico()).isEqualTo("Socio prueba");
-        mvc.perform(get("/api/pagos").param("mes", "2026-06")
-                .header("Authorization", "Bearer " + tokenAdmin))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].alumnoActivo").value(false));
+        Alumno conservado = em.find(Alumno.class, id);
+        assertThat(conservado).isNotNull();
+        assertThat(conservado.isActivo()).isFalse();
+        assertThat(em.find(Usuario.class, usuarioId)).isNotNull();
+        assertThat(em.find(Pago.class, pagoId).getAlumno()).isNotNull();
     }
 
     @Test
