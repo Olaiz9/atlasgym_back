@@ -29,6 +29,16 @@ jobs:
             exit 1
           fi
 
+      - name: Validar scripts bash (ShellCheck)
+        run: |
+          shellcheck scripts/preparar-servidor.sh
+          shellcheck -S error scripts/*.sh
+
+      - name: Simular preparación del servidor (--simular)
+        run: |
+          bash scripts/preparar-servidor.sh --simular
+          bash scripts/preparar-servidor.sh --simular --abrir-web
+
       # Misma version de Java que la imagen de produccion (eclipse-temurin:17).
       - uses: actions/setup-java@v5
         with:
