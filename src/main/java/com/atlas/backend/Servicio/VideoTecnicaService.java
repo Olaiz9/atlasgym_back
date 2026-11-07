@@ -8,6 +8,7 @@ import com.atlas.backend.Repositorio.VideoTecnicaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -89,7 +90,9 @@ public class VideoTecnicaService {
                 v.getGifUrl(),
                 v.getFormato(),
                 v.getEquipo(),
-                v.getConsejosClave()
+                // Copia dentro de la transaccion: la coleccion de Hibernate es perezosa y el JSON se
+                // escribe cuando la transaccion ya cerro (open-in-view=false) -> 500 por LazyInitialization.
+                v.getConsejosClave() == null ? List.of() : new ArrayList<>(v.getConsejosClave())
         );
     }
 }
