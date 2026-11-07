@@ -24,8 +24,6 @@ import com.atlas.backend.Dto.ClaveTemporalResponseDto;
 import com.atlas.backend.Seguridad.GeneradorClaves;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -46,8 +44,6 @@ public class AlumnoService {
     private final PagoRepository pagoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-    @PersistenceContext
-    private EntityManager em;
 
     public AlumnoService(AlumnoRepository alumnoRepository,
                          PlanRepository planRepository,
@@ -127,10 +123,7 @@ public class AlumnoService {
             alumno.setRutinaAlumno(rutina);
         }
 
-        // DECISION PENDIENTE 4 (credenciales del alumno): ramaBruno las crea recien en el
-        // primer pago (POST /api/alumnos/{id}/credenciales); ramaLucas en el alta.
-        // Mientras el equipo decide se conserva el alta con usuario.
-        // Decision 2026-11-01 (modo mixto): la cuenta nace con una clave al azar que NADIE conoce
+        // Decision 4 (2026-11-01) (modo mixto): la cuenta nace con una clave al azar que NADIE conoce
         // (antes era el DNI, y cualquiera que lo supiera podia entrar antes que el socio).
         // El acceso se entrega desde Finanzas (primer pago) o con "Generar clave temporal".
         // Los socios de la importacion masiva (Dia Cero) si arrancan con el DNI: ver importarMasivo.
@@ -288,77 +281,27 @@ public class AlumnoService {
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
 
-        // Paso 1: Si está activo, se da de baja lógica y pasa a Inactivos
-        if (alumno.isActivo()) {
-            alumno.setActivo(false);
-            if (alumno.getUsuario() != null) {
-                alumno.getUsuario().setActivo(false);
-                usuarioRepository.save(alumno.getUsuario());
-            }
-            List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
-            if (pagos != null && !pagos.isEmpty()) {
-                for (Pago p : pagos) {
-                    if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
-                        p.setAlumnoNombreHistorico(alumno.getNombre());
-                    }
-                }
-                pagoRepository.saveAll(pagos);
-            }
-            alumnoRepository.save(alumno);
+        // Decision 3 (2026-11-06): la baja es SIEMPRE logica y repetirla no hace nada.
+        // Nunca se borra al socio: si vuelve, se reactiva con su ficha e historial
+        // (asistencias, entrenamientos, pagos) y no se le cobra inscripcion de nuevo.
+        if (!alumno.isActivo()) {
             return;
         }
-
-        // Paso 2: Si ya estaba inactivo, se elimina definitivamente preservando pagos históricos
-        eliminarDefinitivamente(id);
-    }
-
-    @Transactional
-    public void eliminarDefinitivamente(Long id) {
-        Alumno alumno = alumnoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
-
-        // 1. Preservar pagos como historicos y desvincular del alumno en la tabla pagos
+        alumno.setActivo(false);
+        if (alumno.getUsuario() != null) {
+            alumno.getUsuario().setActivo(false);
+            usuarioRepository.save(alumno.getUsuario());
+        }
         List<Pago> pagos = pagoRepository.findByAlumnoIdOrderByFechaDesc(id);
         if (pagos != null && !pagos.isEmpty()) {
             for (Pago p : pagos) {
                 if (p.getAlumnoNombreHistorico() == null || p.getAlumnoNombreHistorico().isBlank()) {
                     p.setAlumnoNombreHistorico(alumno.getNombre());
                 }
-                p.setAlumno(null);
             }
-            pagoRepository.saveAllAndFlush(pagos);
+            pagoRepository.saveAll(pagos);
         }
-
-        // 2. Eliminar avisos vinculados a este alumno y sus registros de lectura
-        em.createNativeQuery("DELETE FROM aviso_leidos WHERE aviso_id IN (SELECT id FROM avisos WHERE alumno_id = :aid)")
-                .setParameter("aid", id).executeUpdate();
-        em.createNativeQuery("DELETE FROM avisos WHERE alumno_id = :aid")
-                .setParameter("aid", id).executeUpdate();
-
-        // 3. Eliminar asistencias
-        em.createNativeQuery("DELETE FROM asistencias WHERE alumno_id = :aid")
-                .setParameter("aid", id).executeUpdate();
-
-        // 4. Eliminar sesiones de entrenamiento y series
-        em.createNativeQuery("DELETE FROM registros_series WHERE sesion_ejercicio_id IN (SELECT id FROM sesiones_ejercicios WHERE sesion_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid))")
-                .setParameter("aid", id).executeUpdate();
-        em.createNativeQuery("DELETE FROM sesiones_ejercicios WHERE sesion_id IN (SELECT id FROM sesiones_entrenamiento WHERE alumno_id = :aid)")
-                .setParameter("aid", id).executeUpdate();
-        em.createNativeQuery("DELETE FROM sesiones_entrenamiento WHERE alumno_id = :aid")
-                .setParameter("aid", id).executeUpdate();
-
-        // 5. Eliminar alumno de la tabla alumnos
-        Usuario usuario = alumno.getUsuario();
-        em.createNativeQuery("DELETE FROM alumnos WHERE id_alumno = :aid")
-                .setParameter("aid", id).executeUpdate();
-
-        // 6. Eliminar usuario de acceso si existia
-        if (usuario != null) {
-            em.createNativeQuery("DELETE FROM aviso_leidos WHERE usuario_id = :uid")
-                    .setParameter("uid", usuario.getId()).executeUpdate();
-            em.createNativeQuery("DELETE FROM usuarios WHERE id = :uid")
-                    .setParameter("uid", usuario.getId()).executeUpdate();
-        }
+        alumnoRepository.save(alumno);
     }
 
     /**

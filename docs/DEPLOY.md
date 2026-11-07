@@ -28,7 +28,7 @@ Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet s
 | Requisito | Mínimo | Recomendado |
 |---|---|---|
 | Sistema | Ubuntu 22.04 / 24.04 (Linux de 64 bits) | — |
-| Memoria | 2 GB | 4 GB (MySQL + Java + Node juntos) |
+| Memoria | 2 GB (bajando los `*_MEM_LIMIT` del `.env`) | 4 GB (MySQL + Java + Node juntos; cada contenedor tiene un techo de memoria) |
 | Disco | 20 GB | 40 GB (los backups ocupan) |
 | Red | IP pública con puertos **80 y 443** abiertos | — |
 | Software | Docker Engine + plugin `docker compose`, `git`, `curl` | — |
