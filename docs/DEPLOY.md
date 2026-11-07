@@ -227,7 +227,8 @@ El servidor siempre corre versiones etiquetadas (`vMAYOR.MENOR.PARCHE`, ej. `v1.
    cd /opt/atlas/atlasgym_back
    ./scripts/actualizar.sh --version v1.1.0
    ```
-   El script verifica que el tag exista en los dos repos antes de tocar nada, guarda la versión que estaba corriendo en `.version-anterior`, hace un backup previo de la base, cambia ambos repos al tag y reconstruye los contenedores.
+   El script verifica que el tag exista en los dos repos antes de tocar nada, hace un backup previo de la base, guarda en `.version-anterior` la versión previa de ambos repos (`back=` y `front=`, como tag exacto o SHA completo) junto con la ruta exacta de ese backup (`backup=`), cambia ambos repos al tag y reconstruye los contenedores.
+   > **Nota:** después de usar `--version`, los repositorios quedan parados sobre ese tag (*detached HEAD*). A partir de ahí, para actualizar siempre hay que indicar la nueva versión con `./scripts/actualizar.sh --version vX.Y.Z` (si se corre `./scripts/actualizar.sh` sin argumentos, el script corta avisando `"Estás en una versión etiquetada (<tag>). Usá --version vX.Y.Z para actualizar."`).
 4. Comprobar que el commit del login es el nuevo y hacer un ingreso de prueba.
 
 **Si la versión nueva sale mal (vuelta atrás en un comando):**
@@ -235,11 +236,12 @@ El servidor siempre corre versiones etiquetadas (`vMAYOR.MENOR.PARCHE`, ej. `v1.
 cd /opt/atlas/atlasgym_back
 ./scripts/actualizar.sh --volver
 ```
-Esto vuelve ambos repositorios a la versión guardada en `.version-anterior` y relanza los contenedores.
-Si la versión nueva traía una migración de base de datos, restaurar además el backup que el script hizo justo antes (la ruta exacta aparece en pantalla al correr `--volver`, ver paso 7):
+Esto vuelve cada repositorio a la versión exacta guardada en `.version-anterior` (`back=` y `front=`) y relanza los contenedores.
+Si la versión nueva traía una migración de base de datos, restaurar además el backup que el script hizo justo antes de actualizar (la ruta exacta guardada en `backup=` aparece en pantalla al correr `--volver`, ver paso 7):
 ```bash
 ./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
 ```
+> **Atención:** Restaurar el backup previo BORRA los cobros, altas y asistencias registrados desde la actualización. Antes de restaurar, anotá o exportá lo que se cargó en ese lapso.
 
 ---
 
