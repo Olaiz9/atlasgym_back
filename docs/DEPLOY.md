@@ -212,26 +212,34 @@ crontab -e
 
 ## 8. Publicar una versión nueva
 
-El servidor siempre corre **`main`**. El trabajo del día a día va a `develop`.
+El servidor siempre corre versiones etiquetadas (`vMAYOR.MENOR.PARCHE`, ej. `v1.0.0`) sobre **`main`**. El trabajo del día a día va a `develop`.
 
-1. **Release:** cuando `develop` está estable, abrir un PR `develop → main` en **cada repo** que cambió,
-   con CI en verde y aprobación, igual que cualquier PR.
-2. Si cambió la versión, subirla en `package.json` del front (ej. `1.0.0` → `1.1.0`).
+1. **Release (`develop → main`):** cuando `develop` está estable, abrir un PR `develop → main` en **cada repo** que cambió (subiendo la versión en `package.json` del front si corresponde, ej. `1.0.0` → `1.1.0`), con CI en verde y aprobación, igual que cualquier PR.
+2. **Tag en los dos repos:** una vez mergeado en `main`, etiquetar con el **mismo tag** `vMAYOR.MENOR.PARCHE` tanto `atlasgym_back` como `atlasgym_front`:
+   ```bash
+   # En atlasgym_back y en atlasgym_front (parado en main actualizado):
+   git checkout main && git pull
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
 3. **En el servidor**, fuera del horario pico:
    ```bash
    cd /opt/atlas/atlasgym_back
-   ./scripts/actualizar.sh
+   ./scripts/actualizar.sh --version v1.1.0
    ```
+   El script verifica que el tag exista en los dos repos antes de tocar nada, guarda la versión que estaba corriendo en `.version-anterior`, hace un backup previo de la base, cambia ambos repos al tag y reconstruye los contenedores.
 4. Comprobar que el commit del login es el nuevo y hacer un ingreso de prueba.
 
-**Si la versión nueva sale mal:** volver al commit anterior en el repo que falló y relanzar.
+**Si la versión nueva sale mal (vuelta atrás en un comando):**
 ```bash
-git -C ../atlasgym_front log --oneline -5      # buscar el commit anterior
-git -C ../atlasgym_front checkout <commit>
-./scripts/actualizar.sh --sin-git
+cd /opt/atlas/atlasgym_back
+./scripts/actualizar.sh --volver
 ```
-Si el problema fue de datos (una migración), restaurar el backup que el script hizo justo antes (paso 7).
-Después, arreglar en `develop` y volver a `main` con `git checkout main`.
+Esto vuelve ambos repositorios a la versión guardada en `.version-anterior` y relanza los contenedores.
+Si la versión nueva traía una migración de base de datos, restaurar además el backup que el script hizo justo antes (la ruta exacta aparece en pantalla al correr `--volver`, ver paso 7):
+```bash
+./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
+```
 
 ---
 
