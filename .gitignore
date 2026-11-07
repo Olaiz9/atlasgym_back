@@ -46,3 +46,6 @@ reportes/smoke/
 
 # Backups de base de datos: nunca a Git (pueden tener datos reales de socios)
 backups/
+
+# Última versión instalada antes de actualizar (la escribe scripts/actualizar.sh)
+.version-anterior

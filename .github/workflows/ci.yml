@@ -29,6 +29,9 @@ jobs:
             exit 1
           fi
 
+      - name: Validar scripts bash (ShellCheck)
+        run: shellcheck scripts/*.sh
+
       # Misma version de Java que la imagen de produccion (eclipse-temurin:17).
       - uses: actions/setup-java@v5
         with:
