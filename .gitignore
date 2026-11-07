@@ -46,3 +46,6 @@ reportes/smoke/
 
 # Backups de base de datos: nunca a Git (pueden tener datos reales de socios)
 backups/
+
+# Plan comercial del equipo: solo en local / Drive (el repo es publico)
+reportes/PLAN_DE_ACCION_ATLAS_GYM.pdf
