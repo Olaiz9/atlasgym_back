@@ -54,18 +54,20 @@ Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet s
 
 ## 2. Preparar el servidor (una sola vez)
 
-En un Ubuntu 22.04 / 24.04 recién creado, correr como `root` el script `scripts/preparar-servidor.sh` (es **idempotente**: se puede correr más de una vez sin romper ni duplicar nada):
+En un Ubuntu 22.04 / 24.04 recién creado, instalar primero `git`, clonar `atlasgym_back` en `/opt/atlas` y correr el script `scripts/preparar-servidor.sh` (es **idempotente**: se puede correr más de una vez sin romper ni duplicar nada):
 
 ```bash
-# Descargar el script o correrlo desde el repo clonado:
-curl -fsSLO https://raw.githubusercontent.com/Olaiz9/atlasgym_back/main/scripts/preparar-servidor.sh
-chmod +x preparar-servidor.sh
+# 1. Instalar git (puede no venir de fábrica), clonar el backend en /opt/atlas y entrar al repo:
+sudo apt-get update && sudo apt-get install -y git
+sudo mkdir -p /opt/atlas && cd /opt/atlas
+sudo git clone https://github.com/Olaiz9/atlasgym_back.git
+cd /opt/atlas/atlasgym_back
 
-# Opcional: ver qué haría sin modificar nada
-./preparar-servidor.sh --simular
+# 2. Opcional: ver qué haría sin modificar nada
+./scripts/preparar-servidor.sh --simular
 
-# Preparar el servidor (deja ufw solo con SSH; agregar --abrir-web si se van a exponer 80 y 443 directo):
-sudo ./preparar-servidor.sh --abrir-web
+# 3. Preparar el servidor (deja ufw solo con SSH; agregar --abrir-web si se van a exponer 80 y 443 directo):
+sudo ./scripts/preparar-servidor.sh --abrir-web
 ```
 
 El script deja configurados automáticamente:
@@ -73,12 +75,13 @@ El script deja configurados automáticamente:
 2. Docker Engine + plugin `docker compose`, `git`, `curl` y `rclone`.
 3. Swap de 2 GB (`/swapfile`) si el servidor no tenía swap activa.
 4. Usuario `atlas` en el grupo `docker` y carpeta `/opt/atlas` de su propiedad.
-5. Firewall `ufw`: solo SSH por defecto, o SSH + 80/443 si se pasa `--abrir-web` (con Cloudflare Tunnel no hace falta `--abrir-web`).
+5. Firewall `ufw`: permite el puerto real de SSH (`sshd -T`) por defecto, o SSH + 80/443 si se pasa `--abrir-web`.
+   > **Ojo:** Docker publica 80/443 de Caddy aunque `ufw` no los permita. Para cerrarlos de verdad (ej. con Cloudflare Tunnel) hay que dejar de publicarlos en `docker-compose.yml`.
 6. Parches de seguridad automáticos (`unattended-upgrades`) y `fail2ban` para SSH.
-7. SSH solo con llave (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`) **únicamente si** ya hay al menos una llave en `authorized_keys` de `root` o de `atlas` (si no hay ninguna, no toca SSH y avisa en pantalla para no dejarte afuera).
+7. SSH solo con llave (`/etc/ssh/sshd_config.d/00-atlas-hardening.conf`: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`, verificado con `sshd -T`) **únicamente si** ya hay al menos una llave en `authorized_keys` de `root` o de `atlas` (si no hay ninguna, no toca SSH y avisa en pantalla para no dejarte afuera).
 
 ### Lo que sigue siendo manual
-- **Llave SSH:** si al crear el VPS no cargaste tu llave pública SSH, agregala en `/home/atlas/.ssh/authorized_keys` (o `/root/.ssh/authorized_keys`) y volvé a correr `sudo ./preparar-servidor.sh` para deshabilitar el login por contraseña.
+- **Llave SSH:** si al crear el VPS no cargaste tu llave pública SSH, agregala en `/home/atlas/.ssh/authorized_keys` (o `/root/.ssh/authorized_keys`) y volvé a correr `sudo ./scripts/preparar-servidor.sh` para deshabilitar el login por contraseña.
 - **DNS** (si se exponen los puertos 80 y 443): en el proveedor del dominio, crear un registro **A** que apunte el dominio a la IP pública del servidor. Comprobar antes de seguir (tiene que devolver la IP del servidor):
   ```bash
   getent hosts gym.ejemplo.com.ar

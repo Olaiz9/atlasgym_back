@@ -12,9 +12,10 @@
 #   2. Docker Engine + plugin compose, git, curl y rclone.
 #   3. Swap de 2 GB (/swapfile) si el servidor no tiene swap activa.
 #   4. Usuario 'atlas' en el grupo 'docker' y carpeta /opt/atlas de su propiedad.
-#   5. Firewall ufw: solo SSH por defecto (y 80/443 si se pasa --abrir-web).
+#   5. Firewall ufw: puerto real de SSH por defecto (y 80/443 si se pasa --abrir-web).
 #   6. Parches de seguridad automáticos (unattended-upgrades) y fail2ban para SSH.
-#   7. SSH solo con llave (PasswordAuthentication no, PermitRootLogin prohibit-password)
+#   7. SSH solo con llave (/etc/ssh/sshd_config.d/00-atlas-hardening.conf:
+#      PasswordAuthentication no, PermitRootLogin prohibit-password), verificado con sshd -T,
 #      ÚNICAMENTE si ya hay al menos una llave en authorized_keys de root o de atlas.
 #   8. Resumen final: qué se instaló, qué ya estaba y qué falta hacer a mano.
 # ============================================================================
@@ -74,6 +75,45 @@ apt_actualizar_si_hace_falta() {
     DEBIAN_FRONTEND=noninteractive apt-get update -qq
     APT_ACTUALIZADO=1
   fi
+}
+
+SSHD_CONFIG_FILE="${ATLAS_SSHD_CONFIG:-/etc/ssh/sshd_config}"
+
+tiene_sshd_real() {
+  if [[ -n "${SYSROOT}" && -z "${ATLAS_SSHD_CONFIG:-}" ]]; then
+    return 1
+  fi
+  command -v sshd >/dev/null 2>&1 && [[ -f "${SSHD_CONFIG_FILE}" ]]
+}
+
+ejecutar_sshd() {
+  if [[ -n "${ATLAS_SSHD_CONFIG:-}" ]]; then
+    sshd -f "${ATLAS_SSHD_CONFIG}" "$@"
+  else
+    sshd "$@"
+  fi
+}
+
+obtener_puerto_ssh() {
+  local p=""
+  if tiene_sshd_real; then
+    mkdir -p /run/sshd 2>/dev/null || true
+    p="$(ejecutar_sshd -T 2>/dev/null | awk '/^port /{print $2; exit}' || true)"
+  fi
+  if [[ ! "${p}" =~ ^[0-9]+$ ]]; then
+    p="22"
+  fi
+  printf '%s\n' "${p}"
+}
+
+sshd_efectivo_endurecido() {
+  local salida pass_auth permit_root
+  mkdir -p /run/sshd 2>/dev/null || true
+  salida="$(ejecutar_sshd -T 2>/dev/null || true)"
+  [[ -n "${salida}" ]] || return 1
+  pass_auth="$(awk '/^passwordauthentication /{print tolower($2); exit}' <<< "${salida}")"
+  permit_root="$(awk '/^permitrootlogin /{print tolower($2); exit}' <<< "${salida}")"
+  [[ "${pass_auth}" == "no" ]] && [[ "${permit_root}" == "without-password" || "${permit_root}" == "prohibit-password" ]]
 }
 
 # Verificar sistema operativo
@@ -251,16 +291,17 @@ elif [[ "${SIMULAR}" -eq 1 ]]; then
   INSTALADO+=("[simulado] Carpeta /opt/atlas (${USUARIO_ATLAS}:${USUARIO_ATLAS})")
 else
   mkdir -p "${CARPETA_ATLAS}"
-  chown "${USUARIO_ATLAS}:${USUARIO_ATLAS}" "${CARPETA_ATLAS}"
+  chown -R "${USUARIO_ATLAS}:${USUARIO_ATLAS}" "${CARPETA_ATLAS}"
   info "Carpeta /opt/atlas lista (propietario ${USUARIO_ATLAS}:${USUARIO_ATLAS})."
   INSTALADO+=("Carpeta /opt/atlas (${USUARIO_ATLAS}:${USUARIO_ATLAS})")
 fi
 
 # --- 5. Firewall ufw ---------------------------------------------------------
+PUERTO_SSH="$(obtener_puerto_ssh)"
 if [[ "${ABRIR_WEB}" -eq 1 ]]; then
-  DESC_UFW="SSH + puertos 80 y 443 (--abrir-web)"
+  DESC_UFW="SSH (${PUERTO_SSH}/tcp) + puertos 80 y 443 (--abrir-web)"
 else
-  DESC_UFW="solo SSH (sin 80/443)"
+  DESC_UFW="solo SSH (${PUERTO_SSH}/tcp, sin 80/443)"
 fi
 paso "5/7 Firewall ufw (${DESC_UFW})"
 
@@ -270,7 +311,7 @@ if command -v ufw >/dev/null 2>&1; then
 fi
 
 UFW_YA_LISTO=0
-if echo "${ESTADO_UFW}" | grep -q "^Status: active" && echo "${ESTADO_UFW}" | grep -qE "(OpenSSH|22/tcp)[[:space:]]+ALLOW"; then
+if echo "${ESTADO_UFW}" | grep -q "^Status: active" && echo "${ESTADO_UFW}" | grep -qE "${PUERTO_SSH}/tcp[[:space:]]+ALLOW"; then
   if [[ "${ABRIR_WEB}" -eq 1 ]]; then
     if echo "${ESTADO_UFW}" | grep -qE "80/tcp[[:space:]]+ALLOW" && echo "${ESTADO_UFW}" | grep -qE "443/tcp[[:space:]]+ALLOW"; then
       UFW_YA_LISTO=1
@@ -284,7 +325,7 @@ if [[ "${UFW_YA_LISTO}" -eq 1 ]]; then
   info "ufw ya está activo con las reglas requeridas (${DESC_UFW})."
   YA_ESTABA+=("Firewall ufw (${DESC_UFW})")
 elif [[ "${SIMULAR}" -eq 1 ]]; then
-  info "[SIMULAR] Configuraría y activaría ufw con: ${DESC_UFW}."
+  info "[SIMULAR] Configuraría y activaría ufw permitiendo ${PUERTO_SSH}/tcp (${DESC_UFW})."
   INSTALADO+=("[simulado] Firewall ufw (${DESC_UFW})")
 else
   if ! command -v ufw >/dev/null 2>&1; then
@@ -293,9 +334,7 @@ else
   fi
   ufw default deny incoming >/dev/null
   ufw default allow outgoing >/dev/null
-  if ! ufw allow OpenSSH >/dev/null 2>&1; then
-    ufw allow 22/tcp >/dev/null
-  fi
+  ufw allow "${PUERTO_SSH}/tcp" >/dev/null
   if [[ "${ABRIR_WEB}" -eq 1 ]]; then
     ufw allow 80/tcp >/dev/null
     ufw allow 443/tcp >/dev/null
@@ -399,15 +438,40 @@ else
     fi
   fi
 
-  SSH_HARDENING_FILE="${ATLAS_SSHD_HARDENING_FILE:-${SYSROOT}/etc/ssh/sshd_config.d/99-atlas-hardening.conf}"
-  if [[ -f "${SSH_HARDENING_FILE}" ]] \
-     && grep -q "^PasswordAuthentication no$" "${SSH_HARDENING_FILE}" \
-     && grep -q "^PermitRootLogin prohibit-password$" "${SSH_HARDENING_FILE}"; then
-    info "SSH ya estaba configurado solo con llave (/etc/ssh/sshd_config.d/99-atlas-hardening.conf)."
+  SSH_HARDENING_DIR="${SYSROOT}/etc/ssh/sshd_config.d"
+  SSH_HARDENING_FILE="${ATLAS_SSHD_HARDENING_FILE:-${SSH_HARDENING_DIR}/00-atlas-hardening.conf}"
+  SSH_OLD_HARDENING_FILE="${SSH_HARDENING_DIR}/99-atlas-hardening.conf"
+
+  # Migración idempotente: eliminar 99-atlas-hardening.conf si existía de una versión previa
+  if [[ -f "${SSH_OLD_HARDENING_FILE}" ]]; then
+    if [[ "${SIMULAR}" -eq 1 ]]; then
+      info "[SIMULAR] Eliminaría el archivo viejo ${SSH_OLD_HARDENING_FILE} (reemplazado por 00-atlas-hardening.conf)."
+    else
+      rm -f "${SSH_OLD_HARDENING_FILE}"
+      info "Archivo obsoleto eliminado: ${SSH_OLD_HARDENING_FILE}."
+    fi
+  fi
+
+  SSH_YA_ENDURECIDO=0
+  if tiene_sshd_real; then
+    if sshd_efectivo_endurecido; then
+      SSH_YA_ENDURECIDO=1
+    fi
+  else
+    info "No hay sshd real disponible (modo SYSROOT/simulación): se saltea la verificación con 'sshd -T'."
+    if [[ -f "${SSH_HARDENING_FILE}" ]] \
+       && grep -q "^PasswordAuthentication no$" "${SSH_HARDENING_FILE}" \
+       && grep -q "^PermitRootLogin prohibit-password$" "${SSH_HARDENING_FILE}"; then
+      SSH_YA_ENDURECIDO=1
+    fi
+  fi
+
+  if [[ "${SSH_YA_ENDURECIDO}" -eq 1 ]]; then
+    info "SSH ya estaba configurado solo con llave (verificado)."
     YA_ESTABA+=("SSH solo con llave (PasswordAuthentication no, PermitRootLogin prohibit-password)")
   elif [[ "${SIMULAR}" -eq 1 ]]; then
-    info "[SIMULAR] Escribiría /etc/ssh/sshd_config.d/99-atlas-hardening.conf con 'PasswordAuthentication no' y 'PermitRootLogin prohibit-password' y recargaría sshd."
-    INSTALADO+=("[simulado] SSH solo con llave (PasswordAuthentication no, PermitRootLogin prohibit-password)")
+    info "[SIMULAR] Escribiría /etc/ssh/sshd_config.d/00-atlas-hardening.conf con 'PasswordAuthentication no' y 'PermitRootLogin prohibit-password', recargaría sshd y verificaría con 'sshd -T'."
+    INSTALADO+=("[simulado] SSH solo con llave (/etc/ssh/sshd_config.d/00-atlas-hardening.conf)")
   else
     mkdir -p "$(dirname "${SSH_HARDENING_FILE}")"
     cat > "${SSH_HARDENING_FILE}" <<'EOF'
@@ -417,19 +481,26 @@ PermitRootLogin prohibit-password
 KbdInteractiveAuthentication no
 ChallengeResponseAuthentication no
 EOF
-    if [[ -z "${SYSROOT}" ]] && command -v sshd >/dev/null 2>&1 && [[ -f /etc/ssh/sshd_config ]]; then
-      mkdir -p /run/sshd
-      if ! sshd -t 2>/dev/null; then
+    if tiene_sshd_real; then
+      mkdir -p /run/sshd 2>/dev/null || true
+      if ! ejecutar_sshd -t 2>/dev/null; then
         rm -f "${SSH_HARDENING_FILE}"
         falla "La validación 'sshd -t' falló; se revirtió ${SSH_HARDENING_FILE} para no afectar SSH."
       fi
+      systemctl reload ssh >/dev/null 2>&1 \
+        || systemctl reload sshd >/dev/null 2>&1 \
+        || service ssh reload >/dev/null 2>&1 \
+        || true
+      if ! sshd_efectivo_endurecido; then
+        SALIDA_SSHD_T="$(ejecutar_sshd -T 2>/dev/null || true)"
+        PASS_EFECTIVO="$(awk '/^passwordauthentication /{print tolower($2); exit}' <<< "${SALIDA_SSHD_T}")"
+        ROOT_EFECTIVO="$(awk '/^permitrootlogin /{print tolower($2); exit}' <<< "${SALIDA_SSHD_T}")"
+        ARCHIVOS_PISANDO="$(grep -il 'passwordauthentication' "${SSH_HARDENING_DIR}"/* 2>/dev/null | tr '\n' ' ' || true)"
+        falla "La configuración efectiva de sshd ('sshd -T') sigue teniendo passwordauthentication=${PASS_EFECTIVO:-?} y permitrootlogin=${ROOT_EFECTIVO:-?}. Archivos con PasswordAuthentication en /etc/ssh/sshd_config.d/*: ${ARCHIVOS_PISANDO:-ninguno}"
+      fi
     fi
-    systemctl reload ssh >/dev/null 2>&1 \
-      || systemctl reload sshd >/dev/null 2>&1 \
-      || service ssh reload >/dev/null 2>&1 \
-      || true
-    info "SSH configurado solo con llave (/etc/ssh/sshd_config.d/99-atlas-hardening.conf)."
-    INSTALADO+=("SSH solo con llave (PasswordAuthentication no, PermitRootLogin prohibit-password)")
+    info "SSH configurado solo con llave (/etc/ssh/sshd_config.d/00-atlas-hardening.conf)."
+    INSTALADO+=("SSH solo con llave (/etc/ssh/sshd_config.d/00-atlas-hardening.conf)")
   fi
 fi
 
@@ -438,6 +509,7 @@ if [[ "${ABRIR_WEB}" -eq 1 ]]; then
   FALTA_MANUAL+=("Apuntar el registro DNS A del dominio a la IP pública de este servidor (docs/DEPLOY.md, sección 2).")
 else
   FALTA_MANUAL+=("Si el servidor va a exponer HTTPS directo con Caddy, correr de nuevo con --abrir-web y apuntar el DNS (docs/DEPLOY.md, sección 2 y 9).")
+  FALTA_MANUAL+=("Ojo: Docker publica 80/443 de Caddy aunque ufw no los permita. Para cerrarlos de verdad (ej. con Cloudflare Tunnel) hay que dejar de publicarlos en docker-compose.yml.")
 fi
 FALTA_MANUAL+=("Entrar como '${USUARIO_ATLAS}' y clonar atlasgym_back y atlasgym_front en /opt/atlas (docs/DEPLOY.md, sección 3).")
 FALTA_MANUAL+=("Completar /opt/atlas/atlasgym_back/.env y ejecutar ./scripts/actualizar.sh (docs/DEPLOY.md, secciones 4 y 5).")
