@@ -242,29 +242,31 @@ guardar_estado_version_anterior() {
 mostrar_aviso_migracion_volver() {
   local ruta_mostrar="${BACKUP_GUARDADO_ANTERIOR:-backups/${DB_BACKUP_PREFIX}_AAAAMMDD_HHMMSS.sql.gz}"
   echo
+  if [[ -n "${BACKUP_RECIEN_HECHO}" ]]; then
+    echo "Backup de seguridad antes de volver: ${BACKUP_RECIEN_HECHO}"
+  fi
   aviso "Si la versión nueva traía una migración de base de datos, hay que restaurar el backup que el script hizo justo antes:"
   aviso "  ./scripts/restore-mysql.sh ${ruta_mostrar}"
   aviso "Restaurar el backup previo BORRA los cobros, altas y asistencias registrados desde la actualización. Antes de restaurar, anotá o exportá lo que se cargó en ese lapso."
 }
 
 # --- 3. Código nuevo -----------------------------------------------------------
-if [[ "${MODO}" == "version" || "${MODO}" == "volver" ]]; then
+if [[ "${MODO}" == "version" ]]; then
   BACK_ANTES="$(version_para_guardar ".")"
   FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"
   guardar_estado_version_anterior "${BACK_ANTES}" "${FRONT_ANTES}" "${BACKUP_RECIEN_HECHO}"
 
-  if [[ "${MODO}" == "volver" ]]; then
-    paso "Volviendo a la versión anterior (back: '${VERSION_BACK_DESTINO}', front: '${VERSION_FRONT_DESTINO}')"
-  else
-    paso "Cambiando a la versión '${VERSION_DESTINO}' en back y front"
-  fi
-
+  paso "Cambiando a la versión '${VERSION_DESTINO}' en back y front"
   git -c advice.detachedHead=false checkout "${VERSION_BACK_DESTINO}"
   git -C "${FRONT_DIR}" -c advice.detachedHead=false checkout "${VERSION_FRONT_DESTINO}"
-
-  if [[ "${MODO}" == "volver" ]]; then
-    mostrar_aviso_migracion_volver
+elif [[ "${MODO}" == "volver" ]]; then
+  if [[ -n "${BACKUP_RECIEN_HECHO}" ]]; then
+    echo "Backup de seguridad antes de volver: ${BACKUP_RECIEN_HECHO}"
   fi
+  paso "Volviendo a la versión anterior (back: '${VERSION_BACK_DESTINO}', front: '${VERSION_FRONT_DESTINO}')"
+  git -c advice.detachedHead=false checkout "${VERSION_BACK_DESTINO}"
+  git -C "${FRONT_DIR}" -c advice.detachedHead=false checkout "${VERSION_FRONT_DESTINO}"
+  mostrar_aviso_migracion_volver
 elif [[ "${MODO}" == "pull" ]]; then
   BACK_ANTES="$(version_para_guardar ".")"
   FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"

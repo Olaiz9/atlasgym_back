@@ -5,11 +5,23 @@
 #   2. Ejecutar: docker compose up -d --build
 # ============================================================================
 
+# Logs de Docker con rotacion: sin esto crecen sin tope y terminan llenando el disco.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# Los limites de memoria (mem_limit) son techos, no reservas. Valores pensados para un VPS
+# de 4 GB (MySQL + Java + Node + margen para el sistema y para compilar). Se ajustan en .env.
+
 services:
   mysql:
     image: mysql:8.0
     container_name: atlas-mysql
     restart: unless-stopped
+    logging: *logging
+    mem_limit: ${MYSQL_MEM_LIMIT:-1g}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -38,6 +50,10 @@ services:
       dockerfile: Dockerfile
     container_name: atlas-backend
     restart: unless-stopped
+    logging: *logging
+    # La JVM usa MaxRAMPercentage=75 (Dockerfile): sin este techo tomaria el 75% de la RAM del
+    # servidor y dejaria sin memoria a MySQL y al front. Con 1g queda ~768 MB de heap.
+    mem_limit: ${BACKEND_MEM_LIMIT:-1g}
     depends_on:
       mysql:
         condition: service_healthy
@@ -76,6 +92,8 @@ services:
         GIT_COMMIT: ${ATLAS_FRONT_COMMIT:-}
     container_name: atlas-frontend
     restart: unless-stopped
+    logging: *logging
+    mem_limit: ${FRONTEND_MEM_LIMIT:-768m}
     depends_on:
       - backend
     environment:
@@ -91,6 +109,8 @@ services:
     image: caddy:2-alpine
     container_name: atlas-caddy
     restart: unless-stopped
+    logging: *logging
+    mem_limit: ${CADDY_MEM_LIMIT:-256m}
     depends_on:
       - backend
       - frontend

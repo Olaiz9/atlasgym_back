@@ -1,6 +1,8 @@
 package com.atlas.backend;
 
+import com.atlas.backend.Repositorio.UsuarioRepository;
 import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:atlas_flyway_validate;MODE=MySQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=${atlas.test.flyway.url:jdbc:h2:mem:atlas_flyway_validate;MODE=MySQL;DB_CLOSE_DELAY=-1}",
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate",
         "atlas.seed.enabled=false",
@@ -30,6 +32,15 @@ class FlywayEsquemaValidacionTest {
 
     @Autowired
     private Flyway flyway;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @AfterEach
+    void limpiarUsuarioBootstrap() {
+        usuarioRepository.findByEmailIgnoreCase("dueno.prod@atlasgym.com")
+                .ifPresent(usuarioRepository::delete);
+    }
 
     @Test
     void flywayMigraV1AV6YHibernateValidaElEsquemaCompletoSinDiscrepancias() {
