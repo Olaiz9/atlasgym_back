@@ -511,7 +511,7 @@ else
   FALTA_MANUAL+=("Si el servidor va a exponer HTTPS directo con Caddy, correr de nuevo con --abrir-web y apuntar el DNS (docs/DEPLOY.md, sección 2 y 9).")
   FALTA_MANUAL+=("Ojo: Docker publica 80/443 de Caddy aunque ufw no los permita. Para cerrarlos de verdad (ej. con Cloudflare Tunnel) hay que dejar de publicarlos en docker-compose.yml.")
 fi
-FALTA_MANUAL+=("Entrar como '${USUARIO_ATLAS}' y clonar atlasgym_back y atlasgym_front en /opt/atlas (docs/DEPLOY.md, sección 3).")
+FALTA_MANUAL+=("Entrar como '${USUARIO_ATLAS}' y clonar atlasgym_front en /opt/atlas (docs/DEPLOY.md, sección 3).")
 FALTA_MANUAL+=("Completar /opt/atlas/atlasgym_back/.env y ejecutar ./scripts/actualizar.sh (docs/DEPLOY.md, secciones 4 y 5).")
 FALTA_MANUAL+=("Configurar la copia externa de backups (rclone config o BACKUP_OFFSITE_DIR) y el cron diario (docs/DEPLOY.md, sección 7).")
 

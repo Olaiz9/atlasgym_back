@@ -91,13 +91,12 @@ El script deja configurados automáticamente:
 
 ---
 
-## 3. Descargar el código
+## 3. Descargar el código del front
 
-Los dos repos van en **carpetas hermanas**, en la rama `main`:
+`atlasgym_back` ya quedó clonado en `/opt/atlas/atlasgym_back` en el paso 2. Los dos repos van en **carpetas hermanas**, así que (entrando como `atlas`) solo falta clonar `atlasgym_front` al lado:
 
 ```bash
-sudo mkdir -p /opt/atlas && sudo chown $USER /opt/atlas && cd /opt/atlas
-git clone --branch main https://github.com/Olaiz9/atlasgym_back.git
+cd /opt/atlas
 git clone --branch main https://github.com/Olaiz9/atlasgym_front.git
 cd atlasgym_back
 ```
