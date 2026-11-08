@@ -85,6 +85,11 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mysql</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Seguridad: Spring Security -->
 		<dependency>
@@ -125,6 +130,13 @@
 						</exclude>
 					</excludes>
 				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -154,5 +166,26 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Corre toda la suite contra MySQL 8 real con Testcontainers, Flyway activo y ddl-auto=validate:
+		     ./mvnw -Pmysql test (requiere Docker corriendo) -->
+		<profile>
+			<id>mysql</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<systemPropertyVariables>
+								<spring.profiles.active>mysql</spring.profiles.active>
+							</systemPropertyVariables>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

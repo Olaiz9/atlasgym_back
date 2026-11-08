@@ -68,6 +68,31 @@ jobs:
           name: reportes-surefire
           path: target/surefire-reports/
 
+  tests-mysql:
+    name: Tests contra MySQL 8
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Corre toda la suite contra un MySQL 8 real levantado con Testcontainers,
+      # ejecutando Flyway V1..Vn y validando el esquema con ddl-auto=validate.
+      - name: Compilar y correr tests contra MySQL 8
+        run: ./mvnw -B -Pmysql test
+
+      - name: Guardar reportes de tests (MySQL 8)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-surefire-mysql
+          path: target/surefire-reports/
+
   docker:
     name: Imagen Docker
     runs-on: ubuntu-latest

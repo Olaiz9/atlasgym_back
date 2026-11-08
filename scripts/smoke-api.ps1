@@ -48,6 +48,10 @@ $mesActual = $ahoraAR.ToString("yyyy-MM")
 $mesSig = $ahoraAR.AddMonths(1).ToString("yyyy-MM")
 $totemH = @{ "X-Totem-Secret" = $TotemSecret }
 
+Write-Host "`n=== E0 · Salud y disponibilidad ==="
+$sal = Call GET "/api/salud"
+Check "E0" "GET /api/salud sin token -> 200 y base ok" ($sal.Status -eq 200 -and $sal.Json.estado -eq "ok" -and $sal.Json.base -eq "ok") "status=$($sal.Status) raw=$($sal.Raw)"
+
 Write-Host "`n=== E4 · Identidad ==="
 $l = Call POST "/api/auth/login" @{ email = $Admin1Email; password = $Admin1Pass }
 Check "E4" "Login titular 1 -> 200" ($l.Status -eq 200) "status=$($l.Status) $($l.Raw)"

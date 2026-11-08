@@ -24,10 +24,11 @@ Es la **única fuente de verdad** sobre cómo se trabaja en este repo. El contex
 ## Antes de abrir el PR
 
 ```powershell
-.\mvnw.cmd clean test      # todos los tests deben pasar (usan H2, no necesitan MySQL)
+.\mvnw.cmd clean test         # todos los tests deben pasar (usan H2, no necesitan MySQL ni Docker)
+.\mvnw.cmd -Pmysql test       # opcional local (requiere Docker): corre toda la suite contra MySQL 8 real con Testcontainers + Flyway + ddl-auto=validate
 ```
 
-El CI de GitHub además construye la imagen Docker y corre el **ensayo de deploy** (docker compose
+El CI de GitHub además corre `./mvnw -B -Pmysql test` contra MySQL 8 real, construye la imagen Docker y corre el **ensayo de deploy** (docker compose
 completo con MySQL 8 + prueba de humo + simulacro de backup/restore). Si el CI falla, el PR no entra.
 
 ## Reglas duras (no negociables)

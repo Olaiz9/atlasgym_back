@@ -36,6 +36,25 @@ DB_HOST_NAME="${DB_HOST:-127.0.0.1}"
 DB_PORT_NUM="${DB_HOST_PORT:-3307}"
 OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-}"
 RCLONE_TARGET="${RCLONE_REMOTE:-}"
+PING_URL="${BACKUP_PING_URL:-}"
+
+# Aviso a un monitor externo (healthchecks.io): ping al terminar bien, <url>/fail si algo fallo.
+# Si el ping no llega, el monitor avisa igual (no recibio el ping del dia). Nunca corta el backup.
+avisar_monitor() {
+  local rc=$?
+  if [[ -n "${PING_URL}" ]] && command -v curl >/dev/null 2>&1; then
+    local destino="${PING_URL}"
+    [[ ${rc} -ne 0 ]] && destino="${PING_URL%/}/fail"
+    curl -fsS -m 10 --retry 3 -o /dev/null "${destino}"       || echo "[WARN] No se pudo avisar al monitor de backups (${destino})." >&2
+  fi
+  return ${rc}
+}
+trap avisar_monitor EXIT
+
+fallar() {
+  echo "[ERROR] $1" >&2
+  exit 1
+}
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -78,24 +97,28 @@ find "${BACKUP_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${
 
 echo "[$(date -Iseconds)] Backup local verificado OK: ${BACKUP_FILE} (${FILE_SIZE} bytes). Retención: ${RETENTION_DAYS} días."
 
-# Hook Offsite 1: Carpeta sincronizada externa (Google Drive Desktop, OneDrive o NAS)
+# Copia fuera del servidor: si esta configurada y NO llega, el script termina con error.
+# El backup local se conserva igual. Un aviso [WARN] que nadie lee no sirve: la copia externa
+# podria estar rota semanas sin que nadie se entere.
+
+# Copia externa 1: carpeta sincronizada (Google Drive Desktop, OneDrive o NAS montado)
 if [[ -n "${OFFSITE_DIR}" ]]; then
-  if [[ -d "${OFFSITE_DIR}" ]]; then
-    echo "[$(date -Iseconds)] Sincronizando copia offsite a '${OFFSITE_DIR}'..."
-    cp -p "${BACKUP_FILE}" "${OFFSITE_DIR}/"
-    find "${OFFSITE_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete || true
-    echo "[$(date -Iseconds)] Copia offsite sincronizada exitosamente."
-  else
-    echo "[WARN] BACKUP_OFFSITE_DIR='${OFFSITE_DIR}' configurado pero no es un directorio accesible." >&2
-  fi
+  [[ -d "${OFFSITE_DIR}" ]] || fallar "BACKUP_OFFSITE_DIR='${OFFSITE_DIR}' no es una carpeta accesible. El backup local quedo en ${BACKUP_FILE}."
+  echo "[$(date -Iseconds)] Copiando a la carpeta externa '${OFFSITE_DIR}'..."
+  cp -p "${BACKUP_FILE}" "${OFFSITE_DIR}/" || fallar "No se pudo copiar el backup a '${OFFSITE_DIR}'. El backup local quedo en ${BACKUP_FILE}."
+  cmp -s "${BACKUP_FILE}" "${OFFSITE_DIR}/$(basename "${BACKUP_FILE}")" || fallar "La copia en '${OFFSITE_DIR}' no coincide con el backup local."
+  find "${OFFSITE_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete || true
+  echo "[$(date -Iseconds)] Copia en carpeta externa OK."
 fi
 
-# Hook Offsite 2: Remoto rclone hacia nube (S3, B2, Google Drive)
+# Copia externa 2: remoto rclone (Google Drive, S3, B2...)
 if [[ -n "${RCLONE_TARGET}" ]]; then
-  if command -v rclone >/dev/null 2>&1; then
-    echo "[$(date -Iseconds)] Subiendo copia offsite a remoto rclone '${RCLONE_TARGET}'..."
-    rclone copy "${BACKUP_FILE}" "${RCLONE_TARGET}" || echo "[WARN] Falló el comando rclone copy hacia '${RCLONE_TARGET}'." >&2
-  else
-    echo "[WARN] RCLONE_REMOTE='${RCLONE_TARGET}' configurado pero el binario 'rclone' no está en PATH." >&2
-  fi
+  command -v rclone >/dev/null 2>&1 || fallar "RCLONE_REMOTE='${RCLONE_TARGET}' esta configurado pero 'rclone' no esta instalado. El backup local quedo en ${BACKUP_FILE}."
+  echo "[$(date -Iseconds)] Subiendo copia a '${RCLONE_TARGET}'..."
+  rclone copy "${BACKUP_FILE}" "${RCLONE_TARGET}" || fallar "Fallo la subida a '${RCLONE_TARGET}'. El backup local quedo en ${BACKUP_FILE}."
+  # Confirmar que el archivo esta del otro lado y pesa lo mismo
+  rclone check "${BACKUP_DIR}" "${RCLONE_TARGET}" --one-way --size-only     --include "$(basename "${BACKUP_FILE}")" >/dev/null 2>&1     || fallar "El backup no aparece completo en '${RCLONE_TARGET}' despues de subirlo."
+  echo "[$(date -Iseconds)] Copia en '${RCLONE_TARGET}' verificada OK."
 fi
+
+echo "[$(date -Iseconds)] Backup terminado OK."

@@ -28,7 +28,7 @@ Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet s
 | Requisito | Mínimo | Recomendado |
 |---|---|---|
 | Sistema | Ubuntu 22.04 / 24.04 (Linux de 64 bits) | — |
-| Memoria | 2 GB | 4 GB (MySQL + Java + Node juntos) |
+| Memoria | 2 GB (bajando los `*_MEM_LIMIT` del `.env`) | 4 GB (MySQL + Java + Node juntos; cada contenedor tiene un techo de memoria) |
 | Disco | 20 GB | 40 GB (los backups ocupan) |
 | Red | IP pública con puertos **80 y 443** abiertos | — |
 | Software | Docker Engine + plugin `docker compose`, `git`, `curl` | — |
@@ -214,14 +214,53 @@ crontab -e
 ```
 
 - Se guardan en `backups/`, comprimidos, y se borran solos los de más de 14 días.
-- **Copia fuera del servidor (obligatoria):** si se rompe el disco, se pierden también los backups locales.
-  Configurar `RCLONE_REMOTE` (ej. una carpeta de Google Drive) o `BACKUP_OFFSITE_DIR` en el `.env`.
 - **Restaurar** (hace un backup de seguridad antes de pisar nada):
   ```bash
   ./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
   ```
-- Una vez por mes, comprobar que el último backup existe y pesa algo razonable. El CI ya ensaya
-  backup → borrar la base → restaurar en cada PR, pero conviene mirar el del servidor real.
+
+### 7.1 Copia fuera del servidor en Google Drive (obligatoria)
+
+Si se rompe el disco del servidor, se pierden también los backups locales. La copia va al
+Google Drive **de la cuenta del gimnasio**. Si `RCLONE_REMOTE` está configurado y la subida falla,
+el backup **termina con error** (el local queda igual) y el monitor del paso 7.2 avisa.
+
+1. En Google Drive (cuenta del gimnasio), crear la carpeta `ATLAS-backups`.
+2. En el servidor, como el usuario que corre el cron:
+   ```bash
+   rclone config
+   ```
+   - `n` (nuevo remoto) → nombre: `gdrive` → tipo: `drive` (Google Drive).
+   - `client_id` y `client_secret`: dejar vacíos. `scope`: `1` (acceso completo).
+   - "Use web browser to automatically authenticate?": **`n`** (el servidor no tiene navegador).
+     rclone muestra un comando `rclone authorize "drive" ...`: correrlo en una PC con rclone y
+     navegador, iniciar sesión **con la cuenta del gimnasio**, y pegar en el servidor el código que devuelve.
+   - "Configure this as a Shared Drive?": `n`. Confirmar y salir con `q`.
+3. Probar: `rclone lsd gdrive:` tiene que listar `ATLAS-backups`.
+4. En el `.env`: `RCLONE_REMOTE=gdrive:ATLAS-backups`
+5. Correr un backup a mano (`./scripts/backup-mysql.sh`) y ver el archivo en Drive.
+
+> Las credenciales de rclone quedan en `~/.config/rclone/rclone.conf` del servidor. **Nunca** van al repo.
+
+### 7.2 Aviso si un día no hubo backup (healthchecks.io, gratis)
+
+1. Crear cuenta en healthchecks.io con el mail del gimnasio y un check "Backup ATLAS":
+   período **1 día**, gracia **2 horas**. Agregar como aviso el mail de los titulares y el del equipo.
+2. Copiar la URL del check (`https://hc-ping.com/...`) en el `.env`: `BACKUP_PING_URL=...`
+3. Cada backup que termina bien avisa a esa URL; si falla, avisa a `<url>/fail`. Si un día no llega
+   ningún aviso (servidor apagado, cron roto), healthchecks.io manda un mail igual.
+
+### 7.3 Una vez por mes: comprobar que el backup sirve
+
+```bash
+./scripts/verificar-backup.sh            # el último backup diario
+./scripts/verificar-backup.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
+```
+
+Restaura el backup en un MySQL **temporal y separado** (no toca la base real ni abre puertos),
+muestra cuántos usuarios, alumnos, planes, pagos, movimientos de caja y asistencias tiene, y borra
+el contenedor. Si el archivo está roto o no se restaura, termina con error. Los números tienen que
+parecerse a los del sistema. El CI hace esta misma prueba en cada PR.
 
 ---
 
@@ -259,7 +298,35 @@ Cambia el paso 2 (no se abren puertos) y Caddy pasa a servir HTTP interno. Se do
 
 ---
 
-## 10. Si algo falla
+## 10. Monitoreo (UptimeRobot)
+
+Para detectar caídas del servidor o de la base de datos antes de que los titulares o los socios lo noten, se configura un monitor externo gratuito en **UptimeRobot** apuntando al endpoint de salud.
+
+### 10.1 Configuración del monitor
+1. Crear una cuenta gratuita en [uptimerobot.com](https://uptimerobot.com).
+2. En el panel principal, hacer clic en **+ Add New Monitor**:
+   - **Monitor Type:** `HTTP(s)` (o `Keyword` si se desea validar que el cuerpo contenga `"estado":"ok"`).
+   - **Friendly Name:** `ATLAS Gym - Backend y Base`
+   - **URL (or IP):** `https://<dominio>/api/salud` (ej. `https://gym.ejemplo.com.ar/api/salud`).
+   - **Monitoring Interval:** `5 minutes` (intervalo estándar del plan gratuito).
+   - **Monitor Timeout:** `30 seconds`.
+
+El endpoint `/api/salud` es público, ejecuta un `SELECT 1` en la base de datos y responde:
+- **HTTP 200** si el backend y la base responden correctamente (`{"estado":"ok","base":"ok",...}`).
+- **HTTP 503** si la base de datos no está disponible (`{"estado":"error","base":"error",...}`), lo que activa la alerta en UptimeRobot.
+
+### 10.2 Configuración de alertas y canales
+En **My Settings → Alert Contacts**:
+1. **Email:** Agregar el correo de cada titular (`ATLAS_ADMIN_EMAIL`, `ATLAS_ADMIN2_EMAIL`) y el del equipo técnico.
+2. En la configuración del monitor creado, tildar los contactos de alerta creados.
+
+> **Canales y limitaciones según el plan vigente (fuente oficial: [uptimerobot.com/pricing](https://uptimerobot.com/pricing)):**
+> - **Plan gratuito:** Incluye alertas por **correo electrónico** (Email) y notificaciones push en la app móvil oficial, con intervalos de chequeo cada 5 minutos.
+> - **Canales avanzados (Telegram, Webhooks, Slack, SMS/llamada) o intervalos menores (ej. 60 s):** La disponibilidad de integraciones directas (como Telegram o Webhooks) está sujeta a los términos vigentes del servicio y requiere un plan pago (Solo, Team o PRO). Si la organización cuenta con un plan pago que incluya Telegram, se puede vincular el bot oficial (`@UptimeRobotBot`) como contacto adicional; de lo contrario, utilizar las alertas por email incluidas en el plan gratuito.
+
+---
+
+## 11. Si algo falla
 
 ```bash
 docker compose ps                        # qué contenedores están arriba
