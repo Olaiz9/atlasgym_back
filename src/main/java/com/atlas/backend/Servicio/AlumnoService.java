@@ -25,15 +25,20 @@ import com.atlas.backend.Seguridad.GeneradorClaves;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class AlumnoService {
@@ -550,6 +555,22 @@ public class AlumnoService {
      */
     @Transactional
     public AlumnoImportResponseDto importarPadronMasivo(List<AlumnoImportItemDto> filas, String operador) {
+        return ejecutarImportacion(filas, operador, false);
+    }
+
+    /**
+     * Simulacro de la importación: corre exactamente el mismo proceso que {@link #importarPadronMasivo}
+     * (mismas validaciones, avisos y estados de cuenta) y al final deshace la transacción, así que no
+     * queda nada guardado. Lo que muestra es, por construcción, lo que pasaría al confirmar.
+     */
+    @Transactional
+    public AlumnoImportResponseDto simularImportacion(List<AlumnoImportItemDto> filas, String operador) {
+        AlumnoImportResponseDto resultado = ejecutarImportacion(filas, operador, true);
+        TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+        return resultado;
+    }
+
+    private AlumnoImportResponseDto ejecutarImportacion(List<AlumnoImportItemDto> filas, String operador, boolean simular) {
         if (filas == null || filas.isEmpty()) {
             throw new BusinessException("El archivo de importación no contiene filas válidas.");
         }
@@ -572,6 +593,10 @@ public class AlumnoService {
         String opEtiqueta = (operador != null && !operador.isBlank()) ? operador.trim() : "Importación CSV";
         // DNI -> primera fila donde apareció, para avisar si la planilla repite un socio
         Map<String, Integer> filaPorDni = new HashMap<>();
+        // DNI -> socio y última fila, en el orden de la planilla, para el resumen de estados
+        Map<String, Alumno> alumnoPorDni = new LinkedHashMap<>();
+        Map<String, Integer> ultimaFilaPorDni = new HashMap<>();
+        Set<String> dnisNuevos = new HashSet<>();
 
         for (int i = 0; i < filas.size(); i++) {
             AlumnoImportItemDto item = filas.get(i);
@@ -637,7 +662,7 @@ public class AlumnoService {
                     }
                     usuarioRepository.save(alumno.getUsuario());
                 } else {
-                    alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular));
+                    alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular, simular));
                 }
                 alumno = alumnoRepository.saveAndFlush(alumno);
                 actualizados++;
@@ -659,10 +684,13 @@ public class AlumnoService {
                             + "'. Revisalo en su ficha.");
                 }
                 alumno.setPlanAlumno(planEncontrado != null ? planEncontrado : planDefault);
-                alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular));
+                alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular, simular));
                 alumno = alumnoRepository.saveAndFlush(alumno);
                 creados++;
+                dnisNuevos.add(dni);
             }
+            alumnoPorDni.put(dni, alumno);
+            ultimaFilaPorDni.put(dni, nroFila);
 
             YearMonth ymUltimoPago = parsearPeriodoImportacion(item.ultimoPeriodoPago());
             if (item.ultimoPeriodoPago() != null && !item.ultimoPeriodoPago().isBlank() && ymUltimoPago == null) {
@@ -726,13 +754,36 @@ public class AlumnoService {
             }
         }
 
+        // Estado de cuenta con el que queda hoy cada socio de la planilla (la regla "Opción A" real)
+        Map<EstadoCuenta, Integer> estados = new EnumMap<>(EstadoCuenta.class);
+        for (EstadoCuenta e : EstadoCuenta.values()) {
+            estados.put(e, 0);
+        }
+        List<AlumnoImportResponseDto.SocioImportado> socios = new ArrayList<>();
+        for (Map.Entry<String, Alumno> entrada : alumnoPorDni.entrySet()) {
+            Alumno a = entrada.getValue();
+            EstadoCuenta estado = calcularEstadoCuenta(a);
+            estados.merge(estado, 1, Integer::sum);
+            socios.add(new AlumnoImportResponseDto.SocioImportado(
+                    ultimaFilaPorDni.get(entrada.getKey()),
+                    a.getNombre(),
+                    a.getDni(),
+                    dnisNuevos.contains(entrada.getKey()),
+                    a.getPlanAlumno() != null ? a.getPlanAlumno().getNombre() : null,
+                    estado
+            ));
+        }
+
         return new AlumnoImportResponseDto(
                 procesados,
                 creados,
                 actualizados,
                 pagosIniciales,
                 omitidos,
-                advertencias
+                advertencias,
+                simular,
+                estados,
+                socios
         );
     }
 
@@ -741,11 +792,12 @@ public class AlumnoService {
      * a diferencia del alta individual, arrancan con el DNI como clave para que todo el padron
      * pueda entrar desde el primer dia; el cambio en el primer ingreso es obligatorio.
      */
-    private Usuario crearUsuarioInicialSocio(String nombre, String dni, String celular) {
+    private Usuario crearUsuarioInicialSocio(String nombre, String dni, String celular, boolean simular) {
         String username = generarUsernameUnico(nombre, dni, null);
         Usuario nuevoUsuario = new Usuario();
         nuevoUsuario.setEmail(username);
-        nuevoUsuario.setPassword(passwordEncoder.encode(dni));
+        // En el simulacro no se guarda nada: se evita bcrypt (lento) para no duplicar el tiempo de espera.
+        nuevoUsuario.setPassword(simular ? "{simulacro}" : passwordEncoder.encode(dni));
         nuevoUsuario.setRol(Rol.ALUMNO);
         nuevoUsuario.setActivo(true);
         nuevoUsuario.setFechaCreacion(LocalDate.now());
