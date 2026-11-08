@@ -49,9 +49,10 @@ Las migraciones residen en `src/main/resources/db/migration/`:
 - `V5__movimientos_caja.sql`: Tabla `movimientos_caja`: cada ingreso (pago total, seña, saldo, ajuste) con su propio día, método y titular. El arqueo diario se calcula sumando movimientos, no el estado final del comprobante.
 - `V6__configuracion_cobro.sql`: Tabla `configuracion_cobro` (fila única) con alias/titular de transferencia editables por los titulares.
 - `V7__totem_latido.sql`: Tabla `totem_latido` (fila única) con la última señal de vida de la tablet del Tótem y cuántos ingresos tenía sin subir.
+- `V8__version_ficha_alumno.sql`: Columna `version_datos` en `alumnos`. Sube con cada cambio de un titular (no con el check-in). `PUT /api/alumnos/{id}` acepta `version` y responde 409 si otro titular cambió la ficha antes.
 
 > [!CRITICAL]
-> **Regla de Esquema Hibernate:** En perfil `prod`, `spring.jpa.hibernate.ddl-auto` está seteado en `validate`. NUNCA modifiques una entidad JPA sin crear la migración Flyway correspondiente (`V7__...sql`, la siguiente versión libre), de lo contrario la aplicación fallará al arrancar.
+> **Regla de Esquema Hibernate:** En perfil `prod`, `spring.jpa.hibernate.ddl-auto` está seteado en `validate`. NUNCA modifiques una entidad JPA sin crear la migración Flyway correspondiente (`V9__...sql`, la siguiente versión libre), de lo contrario la aplicación fallará al arrancar.
 
 ---
 

@@ -30,6 +30,14 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
     @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.activo = false")
     List<Alumno> findInactivosWithRelaciones();
 
+    /**
+     * Sube la versión solo si sigue siendo la que vio quien edita (en un único UPDATE, sin carrera entre los
+     * dos titulares). Devuelve 0 si otro titular cambió la ficha antes.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Alumno a SET a.versionDatos = a.versionDatos + 1 WHERE a.idAlumno = :id AND a.versionDatos = :version")
+    int avanzarVersionDatos(@Param("id") Long id, @Param("version") long version);
+
     @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE LOWER(a.nombre) LIKE LOWER(CONCAT('%', :nombre, '%'))")
     List<Alumno> findByNombreContainingIgnoreCaseWithRelaciones(@Param("nombre") String nombre);
 

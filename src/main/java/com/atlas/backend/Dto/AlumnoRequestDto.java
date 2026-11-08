@@ -15,6 +15,9 @@ public record AlumnoRequestDto(
         String celular,
         Long planId,
         Long rutinaId,
-        Boolean activo
+        Boolean activo,
+
+        /** Versión de la ficha que vio quien edita (la de AlumnoResponseDto). Opcional. */
+        Long version
 ) {
 }

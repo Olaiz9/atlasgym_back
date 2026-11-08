@@ -73,6 +73,6 @@ class AlumnoControllerSecurityTest {
 
     private AlumnoResponseDto ficha(Long id) {
         return new AlumnoResponseDto(id, "Alumno", null, null, null, null,
-                null, null, null, null, true, null, null, null);
+                null, null, null, null, true, null, null, null, 0L);
     }
 }

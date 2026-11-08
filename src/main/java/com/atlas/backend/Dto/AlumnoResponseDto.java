@@ -18,6 +18,8 @@ public record AlumnoResponseDto(
         Boolean activo,
         EstadoCuenta estadoCuenta,
         Long rutinaId,
-        String rutinaNombre
+        String rutinaNombre,
+        /** Versión de la ficha: mandarla de vuelta al editar para no pisar cambios de otro titular. */
+        Long version
 ) {
 }
