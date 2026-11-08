@@ -54,34 +54,49 @@ Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet s
 
 ## 2. Preparar el servidor (una sola vez)
 
-```bash
-# Docker (script oficial) y herramientas
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER      # cerrar sesión y volver a entrar para que tome efecto
-sudo apt-get install -y git curl
-
-# Firewall: solo SSH, HTTP y HTTPS
-sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable
-```
-
-**DNS:** en el proveedor del dominio, crear un registro **A** que apunte el dominio a la IP pública del
-servidor. Comprobar antes de seguir (tiene que devolver la IP del servidor):
+En un Ubuntu 22.04 / 24.04 recién creado, instalar primero `git`, clonar `atlasgym_back` en `/opt/atlas` y correr el script `scripts/preparar-servidor.sh` (es **idempotente**: se puede correr más de una vez sin romper ni duplicar nada):
 
 ```bash
-getent hosts gym.ejemplo.com.ar
+# 1. Instalar git (puede no venir de fábrica), clonar el backend en /opt/atlas y entrar al repo:
+sudo apt-get update && sudo apt-get install -y git
+sudo mkdir -p /opt/atlas && cd /opt/atlas
+sudo git clone https://github.com/Olaiz9/atlasgym_back.git
+cd /opt/atlas/atlasgym_back
+
+# 2. Opcional: ver qué haría sin modificar nada
+./scripts/preparar-servidor.sh --simular
+
+# 3. Preparar el servidor (deja ufw solo con SSH; agregar --abrir-web si se van a exponer 80 y 443 directo):
+sudo ./scripts/preparar-servidor.sh --abrir-web
 ```
 
-> Sin este paso Caddy no puede sacar el certificado HTTPS.
+El script deja configurados automáticamente:
+1. Zona horaria `America/Argentina/Buenos_Aires`.
+2. Docker Engine + plugin `docker compose`, `git`, `curl` y `rclone`.
+3. Swap de 2 GB (`/swapfile`) si el servidor no tenía swap activa.
+4. Usuario `atlas` en el grupo `docker` y carpeta `/opt/atlas` de su propiedad.
+5. Firewall `ufw`: permite el puerto real de SSH (`sshd -T`) por defecto, o SSH + 80/443 si se pasa `--abrir-web`.
+   > **Ojo:** Docker publica 80/443 de Caddy aunque `ufw` no los permita. Para cerrarlos de verdad (ej. con Cloudflare Tunnel) hay que dejar de publicarlos en `docker-compose.yml`.
+6. Parches de seguridad automáticos (`unattended-upgrades`) y `fail2ban` para SSH.
+7. SSH solo con llave (`/etc/ssh/sshd_config.d/00-atlas-hardening.conf`: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`, verificado con `sshd -T`) **únicamente si** ya hay al menos una llave en `authorized_keys` de `root` o de `atlas` (si no hay ninguna, no toca SSH y avisa en pantalla para no dejarte afuera).
+
+### Lo que sigue siendo manual
+- **Llave SSH:** si al crear el VPS no cargaste tu llave pública SSH, agregala en `/home/atlas/.ssh/authorized_keys` (o `/root/.ssh/authorized_keys`) y volvé a correr `sudo ./scripts/preparar-servidor.sh` para deshabilitar el login por contraseña.
+- **DNS** (si se exponen los puertos 80 y 443): en el proveedor del dominio, crear un registro **A** que apunte el dominio a la IP pública del servidor. Comprobar antes de seguir (tiene que devolver la IP del servidor):
+  ```bash
+  getent hosts gym.ejemplo.com.ar
+  ```
+  > Sin este paso Caddy no puede sacar el certificado HTTPS.
+- **Usar el usuario `atlas`:** para los pasos siguientes, entrar como `atlas` (`su - atlas` o por SSH con `atlas@<ip>`).
 
 ---
 
-## 3. Descargar el código
+## 3. Descargar el código del front
 
-Los dos repos van en **carpetas hermanas**, en la rama `main`:
+`atlasgym_back` ya quedó clonado en `/opt/atlas/atlasgym_back` en el paso 2. Los dos repos van en **carpetas hermanas**, así que (entrando como `atlas`) solo falta clonar `atlasgym_front` al lado:
 
 ```bash
-sudo mkdir -p /opt/atlas && sudo chown $USER /opt/atlas && cd /opt/atlas
-git clone --branch main https://github.com/Olaiz9/atlasgym_back.git
+cd /opt/atlas
 git clone --branch main https://github.com/Olaiz9/atlasgym_front.git
 cd atlasgym_back
 ```
