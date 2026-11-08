@@ -34,6 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -208,12 +209,13 @@ class SaludTest {
     }
 
     @Test
-    @DisplayName("5. POST, PUT y DELETE no permitidos (401 sin token, 403 con token ADMIN y ALUMNO)")
+    @DisplayName("5. POST, PUT, PATCH y DELETE no permitidos (401 sin token, 403 con token ADMIN y ALUMNO)")
     void metodosNoPermitidosRechazados() throws Exception {
         // Sin token: la cadena de seguridad rechaza con 401 (entry point HttpStatusEntryPoint)
         mvc.perform(post("/api/salud")).andExpect(status().isUnauthorized());
         mvc.perform(put("/api/salud")).andExpect(status().isUnauthorized());
         mvc.perform(delete("/api/salud")).andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/salud")).andExpect(status().isUnauthorized());
 
         // Con token ADMIN: rechaza con 403 Forbidden por la regla denyAll() en SecurityConfig
         mvc.perform(post("/api/salud").header("Authorization", tokenAdmin))
@@ -222,6 +224,8 @@ class SaludTest {
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/salud").header("Authorization", tokenAdmin))
                 .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/salud").header("Authorization", tokenAdmin))
+                .andExpect(status().isForbidden());
 
         // Con token ALUMNO: rechaza con 403 Forbidden por la regla denyAll() en SecurityConfig
         mvc.perform(post("/api/salud").header("Authorization", tokenAlumno))
@@ -229,6 +233,8 @@ class SaludTest {
         mvc.perform(put("/api/salud").header("Authorization", tokenAlumno))
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/salud").header("Authorization", tokenAlumno))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/salud").header("Authorization", tokenAlumno))
                 .andExpect(status().isForbidden());
     }
 

@@ -67,9 +67,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/asistencias/totem", "/api/asistencias/totem/sync").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/asistencias/totem/padron-cache").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/salud").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/salud").denyAll()
-                        .requestMatchers(HttpMethod.PUT, "/api/salud").denyAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/salud").denyAll()
+                        // Cualquier otro método (POST, PUT, PATCH, DELETE...) queda bloqueado.
+                        .requestMatchers("/api/salud").denyAll()
                         .requestMatchers(HttpMethod.GET, "/api/planes", "/api/planes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/videoteca", "/api/videoteca/**").permitAll()
                         .requestMatchers("/error").permitAll()

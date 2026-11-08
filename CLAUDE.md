@@ -35,7 +35,7 @@ El software gestiona un gimnasio comercial real en Argentina próximo a su entre
 - **Base de Datos:** MySQL 8.0 (charset `utf8mb4`, collation `utf8mb4_unicode_ci`, time zone `-03:00`).
 - **Migraciones Versionadas:** Flyway 10 (con `spring.jpa.hibernate.ddl-auto=validate` forzado en producción).
 - **Seguridad:** Spring Security 6 + JJWT 0.12.3 (HMAC-SHA256, expiración 24 hs).
-- **Infraestructura:** Docker Compose + Caddy 2 (Reverse Proxy TLS automático) + Scripts de backup/restore.
+- **Infraestructura:** Docker Compose + Caddy 2 (reverse proxy) detrás de un túnel de Cloudflare (`cloudflared`, HTTPS en Cloudflare) + Scripts de backup/restore.
 
 ---
 
@@ -61,9 +61,15 @@ Las migraciones residen en `src/main/resources/db/migration/`:
   - `GET /api/auth/perfil` y `PUT /api/auth/perfil`: Consulta y edición de perfil del usuario logueado (cambio de contraseña, teléfono, avatar).
 - **Alumnos (`/api/alumnos`):**
   - `GET /api/alumnos` y `GET /api/alumnos/{id}`: Padrón activo y detalle con estado contable calculado dinámicamente.
+<<<<<<< HEAD
   - `POST /api/alumnos`: Alta de socio con generación de usuario automático (DNI como clave inicial).
   - `POST /api/alumnos/importar`: Importador masivo transaccional desde CSV para el Día Cero. Con `?simular=true` hace un simulacro (mismo proceso, se deshace al final) y devuelve el estado de cuenta con que quedaría cada socio, para revisarlo antes de confirmar.
   - `POST /api/alumnos/{id}/blanquear-clave`: Restablece la clave del socio a su DNI y marca `requiereCambioPassword=true`.
+=======
+  - `POST /api/alumnos`: Alta de socio con usuario automático y una clave al azar que nadie conoce; el acceso se entrega al cobrar el primer pago o con "Generar clave temporal" (decisión 4, modo mixto).
+  - `POST /api/alumnos/importar`: Importador masivo transaccional desde CSV para el Día Cero.
+  - `POST /api/alumnos/{id}/blanquear-clave`: "Generar clave temporal": crea una clave al azar, la devuelve una sola vez y marca `requiereCambioPassword=true`. Solo los socios importados en el Día Cero arrancan con el DNI como clave.
+>>>>>>> origin/develop
 - **Caja y Finanzas (`/api/pagos`):**
   - `POST /api/pagos`: Registra cobro con guardia `HTTP 409 Conflict` si el período ya fue cubierto. Soporta estado `PARCIAL` (señas) informando `montoAbonado`.
   - `POST /api/pagos/{id}/completar`: Salda el remanente de una seña parcial y lo pasa a `PAGADO`.
@@ -112,5 +118,6 @@ Copiar de `.env.example`:
 - `ATLAS_ADMIN2_EMAIL`, `ATLAS_ADMIN2_PASSWORD`, `ATLAS_ADMIN2_NOMBRE` (Titular 2)
 - `ATLAS_TOTEM_SECRET` (secreto de la tablet del tótem)
 - `ATLAS_CORS_ALLOWED_ORIGIN=http://localhost:3000,http://192.168.*.*:3000,https://tudominio.com`
-- `ATLAS_DOMAIN=localhost` (o dominio de producción para Caddy TLS)
+- `ATLAS_DOMAIN=localhost` (o el dominio de producción)
+- Túnel (producción): `COMPOSE_PROFILES=tunel`, `CLOUDFLARE_TUNNEL_TOKEN`, `ATLAS_CADDY_SITIO=:80`, `CADDY_BIND=127.0.0.1`
 - `BACKUP_OFFSITE_DIR` y `RCLONE_REMOTE` (opcionales para resguardo en la nube o NAS)

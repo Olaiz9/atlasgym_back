@@ -11,14 +11,20 @@ Está escrita para que la siga cualquiera del equipo, aunque nunca haya hecho un
 ## 0. Qué se instala
 
 ```
-Internet ──► Caddy (HTTPS, puertos 80/443)
-               ├── /api/*  ──► backend  (Spring Boot, :8080 solo interno)
-               └── resto   ──► frontend (Next.js,     :3000 solo interno) ──► backend
-                                                     backend ──► MySQL 8 (:3307 solo interno)
+Visitante ──HTTPS──► Cloudflare ◄──túnel saliente── cloudflared ──► Caddy (HTTP, solo interno)
+                                                                     ├── /api/*  ──► backend  (Spring Boot, :8080)
+                                                                     └── resto   ──► frontend (Next.js, :3000) ──► backend
+                                                                                       backend ──► MySQL 8 (:3307)
 ```
 
-Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet solo se ven los puertos
-80 y 443; la base, el back y el front escuchan únicamente dentro del servidor (el CI lo verifica en cada PR).
+Son 5 contenedores de Docker definidos en `docker-compose.yml`. El servidor **no tiene puertos web
+abiertos**: `cloudflared` abre una conexión saliente hacia Cloudflare y los visitantes entran por ahí.
+Cloudflare pone el HTTPS, esconde la IP del servidor y frena tráfico basura (plan gratis).
+Caddy, la base, el back y el front escuchan únicamente dentro del servidor (el CI lo verifica en cada PR,
+también en modo túnel).
+
+> **Modo directo (sin túnel):** también se puede exponer Caddy en 80/443 con su propio certificado.
+> Es lo que usa el ensayo del CI. Ver el final del paso 2.1.
 
 ---
 
@@ -30,15 +36,16 @@ Son 4 contenedores de Docker definidos en `docker-compose.yml`. Desde Internet s
 | Sistema | Ubuntu 22.04 / 24.04 (Linux de 64 bits) | — |
 | Memoria | 2 GB (bajando los `*_MEM_LIMIT` del `.env`) | 4 GB (MySQL + Java + Node juntos; cada contenedor tiene un techo de memoria) |
 | Disco | 20 GB | 40 GB (los backups ocupan) |
-| Red | IP pública con puertos **80 y 443** abiertos | — |
+| Red | Salida a Internet (el túnel no necesita puertos abiertos ni IP pública) | — |
 | Software | Docker Engine + plugin `docker compose`, `git`, `curl` | — |
 
-> **Hosting todavía sin definir** (VPS pago mensual, Oracle Always Free o una PC en el local).
-> Esta guía sirve igual para las tres opciones con IP pública. Si termina siendo una PC del local
-> **sin** IP pública, ver la sección 9.
+> **Hosting decidido:** VPS de Hostinger (KVM 2) a nombre del gimnasio, dominio con DNS en Cloudflare
+> (plan gratis) y túnel de Cloudflare. Como el túnel no necesita IP pública, la guía sirve igual para una
+> PC en el local.
 
 ### Antes del día de la instalación (pedirle al gimnasio)
-- [ ] **Dominio** (ej. `gym.ejemplo.com.ar`) y acceso para crear un registro DNS.
+- [ ] **Dominio** (ej. `gym.ejemplo.com.ar`) ya agregado a la cuenta de **Cloudflare del gimnasio**
+      (nameservers apuntando a Cloudflare) y nosotros como miembros con rol Administrator.
 - [ ] **Mail de cada titular** (es su usuario para entrar).
 - [ ] **Planes y precios** vigentes.
 - [ ] **Excel de socios** (ver paso 6.3).
@@ -66,8 +73,8 @@ cd /opt/atlas/atlasgym_back
 # 2. Opcional: ver qué haría sin modificar nada
 ./scripts/preparar-servidor.sh --simular
 
-# 3. Preparar el servidor (deja ufw solo con SSH; agregar --abrir-web si se van a exponer 80 y 443 directo):
-sudo ./scripts/preparar-servidor.sh --abrir-web
+# 3. Preparar el servidor (deja ufw solo con SSH; con el túnel no hace falta abrir 80/443):
+sudo ./scripts/preparar-servidor.sh
 ```
 
 El script deja configurados automáticamente:
@@ -76,18 +83,35 @@ El script deja configurados automáticamente:
 3. Swap de 2 GB (`/swapfile`) si el servidor no tenía swap activa.
 4. Usuario `atlas` en el grupo `docker` y carpeta `/opt/atlas` de su propiedad.
 5. Firewall `ufw`: permite el puerto real de SSH (`sshd -T`) por defecto, o SSH + 80/443 si se pasa `--abrir-web`.
-   > **Ojo:** Docker publica 80/443 de Caddy aunque `ufw` no los permita. Para cerrarlos de verdad (ej. con Cloudflare Tunnel) hay que dejar de publicarlos en `docker-compose.yml`.
+   > **Ojo:** Docker publica puertos por encima de `ufw`. Por eso `docker-compose.yml` publica Caddy solo en
+   > `127.0.0.1` (`CADDY_BIND`): eso es lo que de verdad cierra 80/443, no el firewall.
 6. Parches de seguridad automáticos (`unattended-upgrades`) y `fail2ban` para SSH.
 7. SSH solo con llave (`/etc/ssh/sshd_config.d/00-atlas-hardening.conf`: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`, verificado con `sshd -T`) **únicamente si** ya hay al menos una llave en `authorized_keys` de `root` o de `atlas` (si no hay ninguna, no toca SSH y avisa en pantalla para no dejarte afuera).
 
 ### Lo que sigue siendo manual
 - **Llave SSH:** si al crear el VPS no cargaste tu llave pública SSH, agregala en `/home/atlas/.ssh/authorized_keys` (o `/root/.ssh/authorized_keys`) y volvé a correr `sudo ./scripts/preparar-servidor.sh` para deshabilitar el login por contraseña.
-- **DNS** (si se exponen los puertos 80 y 443): en el proveedor del dominio, crear un registro **A** que apunte el dominio a la IP pública del servidor. Comprobar antes de seguir (tiene que devolver la IP del servidor):
-  ```bash
-  getent hosts gym.ejemplo.com.ar
-  ```
-  > Sin este paso Caddy no puede sacar el certificado HTTPS.
+- **Túnel de Cloudflare:** ver el paso 2.1.
 - **Usar el usuario `atlas`:** para los pasos siguientes, entrar como `atlas` (`su - atlas` o por SSH con `atlas@<ip>`).
+
+### 2.1 Crear el túnel de Cloudflare (una sola vez, desde el navegador)
+
+1. En el panel de Cloudflare del gimnasio: **Zero Trust > Networks > Tunnels > Create a tunnel**, tipo
+   **Cloudflared**, nombre `atlas`.
+2. En "Install connector" elegir **Docker** y copiar **solo el token** (la cadena larga después de
+   `--token`). No correr el comando que muestra: el contenedor ya está en `docker-compose.yml`.
+   El token va en `CLOUDFLARE_TUNNEL_TOKEN` del `.env` (paso 4). Es una clave: no compartirlo.
+3. En **Public Hostname** agregar:
+   - Subdomain: vacío (o el que se quiera); Domain: el del gimnasio.
+   - Service: tipo **HTTP**, URL **`caddy:80`**.
+
+   Cloudflare crea solo el registro DNS. No hace falta registro A ni la IP del servidor.
+4. En **SSL/TLS > Edge Certificates** activar **Always Use HTTPS**.
+
+El túnel aparece "Healthy" recién cuando el sistema esté levantado (paso 5).
+
+**Modo directo (sin túnel):** en el `.env` borrar `COMPOSE_PROFILES` y `CLOUDFLARE_TUNNEL_TOKEN`, poner
+`ATLAS_CADDY_SITIO=<dominio>` y `CADDY_BIND=0.0.0.0`, correr `preparar-servidor.sh --abrir-web` y crear un
+registro **A** del dominio a la IP del servidor. Caddy saca el certificado solo.
 
 ---
 
@@ -127,10 +151,12 @@ openssl rand -hex 24    # ATLAS_TOTEM_SECRET, DB_PASSWORD, MYSQL_ROOT_PASSWORD (
 | `ATLAS_ADMIN_NOMBRE` / `ATLAS_ADMIN2_NOMBRE` | Nombre de cada titular (aparece en la caja y el arqueo) |
 | `ATLAS_TOTEM_SECRET` | Clave generada. **Obligatoria**: sin ella cualquiera puede marcar asistencias |
 | `ATLAS_TOTEM_PIN` | El PIN de 4 dígitos que eligió el gimnasio (no dejar `1234`) |
+| `CLOUDFLARE_TUNNEL_TOKEN` | El token del túnel (paso 2.1) |
 | `ATLAS_DOMAIN` | El dominio, sin `https://` (ej. `gym.ejemplo.com.ar`) |
 | `ATLAS_CORS_ALLOWED_ORIGIN` | `https://` + el dominio (ej. `https://gym.ejemplo.com.ar`) |
 
-El resto se deja como viene. Guardar una copia del `.env` en el gestor de claves del equipo: sin él,
+`COMPOSE_PROFILES=tunel`, `ATLAS_CADDY_SITIO=:80` y `CADDY_BIND=127.0.0.1` ya vienen puestos para el
+túnel; `actualizar.sh` se frena si falta el token o si el sitio no es `:80`. El resto se deja como viene. Guardar una copia del `.env` en el gestor de claves del equipo: sin él,
 los backups no se pueden restaurar con las mismas credenciales.
 
 ---
@@ -150,6 +176,8 @@ El script hace todo en orden y **se frena si algo está mal**:
 5. Espera a que todo responda.
 
 Al terminar, abrir `https://<dominio>/login`: abajo tiene que decir `ATLAS Gym Platform · v1.0.0 · <commit>`.
+En el panel de Cloudflare el túnel tiene que figurar **Healthy**. Si no carga, ver los logs del túnel:
+`docker compose logs --tail 50 cloudflared`.
 
 ### Apagar el alta inicial de titulares (importante)
 Después de que **los dos titulares** entraron una vez (paso 6.1):
@@ -303,10 +331,8 @@ Si la versión nueva traía una migración de base de datos, restaurar además e
 
 ## 9. Variante: PC en el local sin IP pública
 
-*Pendiente de la decisión del hosting.* Si el servidor es una PC del gimnasio detrás del router, Caddy no
-puede sacar el certificado porque nadie de afuera llega a los puertos 80/443. La alternativa es
-**Cloudflare Tunnel**: un programa en la PC abre la conexión hacia Cloudflare y Cloudflare pone el HTTPS.
-Cambia el paso 2 (no se abren puertos) y Caddy pasa a servir HTTP interno. Se documenta cuando se elija.
+Funciona igual que el VPS: el túnel sale desde la PC hacia Cloudflare, así que no hace falta IP pública
+ni abrir puertos en el router. Se siguen los mismos pasos (Ubuntu en la PC, paso 2.1 incluido).
 
 ---
 
@@ -332,9 +358,7 @@ En **My Settings → Alert Contacts**:
 1. **Email:** Agregar el correo de cada titular (`ATLAS_ADMIN_EMAIL`, `ATLAS_ADMIN2_EMAIL`) y el del equipo técnico.
 2. En la configuración del monitor creado, tildar los contactos de alerta creados.
 
-> **Canales y limitaciones según el plan vigente (fuente oficial: [uptimerobot.com/pricing](https://uptimerobot.com/pricing)):**
-> - **Plan gratuito:** Incluye alertas por **correo electrónico** (Email) y notificaciones push en la app móvil oficial, con intervalos de chequeo cada 5 minutos.
-> - **Canales avanzados (Telegram, Webhooks, Slack, SMS/llamada) o intervalos menores (ej. 60 s):** La disponibilidad de integraciones directas (como Telegram o Webhooks) está sujeta a los términos vigentes del servicio y requiere un plan pago (Solo, Team o PRO). Si la organización cuenta con un plan pago que incluya Telegram, se puede vincular el bot oficial (`@UptimeRobotBot`) como contacto adicional; de lo contrario, utilizar las alertas por email incluidas en el plan gratuito.
+El plan gratis alcanza: avisa por **mail** y por la app de UptimeRobot, y chequea cada 5 minutos. Telegram y Slack son del plan pago (Solo en adelante); si el equipo quiere el aviso en un chat sin pagar, el plan gratis incluye Discord y Google Chat ([precios](https://uptimerobot.com/pricing), [integraciones](https://help.uptimerobot.com/en/articles/11361285-integrations-basic-information)).
 
 ---
 
@@ -342,12 +366,13 @@ En **My Settings → Alert Contacts**:
 
 ```bash
 docker compose ps                        # qué contenedores están arriba
-docker compose logs --tail 100 backend   # o frontend, mysql, caddy
+docker compose logs --tail 100 backend   # o frontend, mysql, caddy, cloudflared
 ```
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| El navegador dice "conexión no segura" | El DNS no apunta al servidor o los puertos 80/443 están cerrados | Revisar paso 2 y `docker compose logs caddy` |
+| La web no carga (error 1033 o 502 de Cloudflare) | El túnel no está conectado o apunta mal | Panel de Cloudflare: el túnel tiene que estar "Healthy" y el destino ser `caddy:80` (paso 2.1). Ver `docker compose logs cloudflared` |
+| Nadie puede entrar y dice "demasiados intentos" | El back no recibe la IP real de cada visitante | Revisar que el destino del túnel sea `caddy:80` y no `frontend:3000` (paso 2.1) |
 | El backend se reinicia en bucle | Falta una variable obligatoria o una migración no coincide | `logs backend`: el error dice qué variable o qué tabla |
 | El login no deja entrar a un titular | Clave mal copiada del `.env` | Revisar que no haya espacios de más; las claves distinguen mayúsculas |
 | La tablet dice "PIN incorrecto" | Se cambió `ATLAS_TOTEM_PIN` pero no se reconstruyó el front | `./scripts/actualizar.sh --sin-git` |
@@ -363,4 +388,6 @@ docker compose logs --tail 100 backend   # o frontend, mysql, caddy
   La protección real es `ATLAS_TOTEM_SECRET`, que valida el servidor en cada ingreso.
 - No compartir el `.env` por WhatsApp ni mail. Si se filtra, generar claves nuevas y relanzar
   (cambiar `ATLAS_JWT_SECRET` cierra la sesión de todos).
-- MySQL, el backend y el frontend nunca se exponen a Internet; todo entra por Caddy.
+- MySQL, el backend y el frontend nunca se exponen a Internet; todo entra por Cloudflare y Caddy.
+- La IP real de cada visitante (para el límite de intentos de login) sale del header `CF-Connecting-IP`.
+  Caddy solo lo cree si el pedido viene de la red interna de Docker, o sea de `cloudflared`.
