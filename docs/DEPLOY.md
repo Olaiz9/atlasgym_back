@@ -151,6 +151,7 @@ openssl rand -hex 24    # ATLAS_TOTEM_SECRET, DB_PASSWORD, MYSQL_ROOT_PASSWORD (
 | `ATLAS_ADMIN_NOMBRE` / `ATLAS_ADMIN2_NOMBRE` | Nombre de cada titular (aparece en la caja y el arqueo) |
 | `ATLAS_TOTEM_SECRET` | Clave generada. **Obligatoria**: sin ella cualquiera puede marcar asistencias |
 | `ATLAS_TOTEM_PIN` | El PIN de 4 dígitos que eligió el gimnasio (no dejar `1234`) |
+| `ATLAS_TOTEM_HORARIO` | Horario de apertura del gimnasio, ej. `07:00-22:30`. Fuera de ese horario no se avisa si la tablet está apagada |
 | `CLOUDFLARE_TUNNEL_TOKEN` | El token del túnel (paso 2.1) |
 | `ATLAS_DOMAIN` | El dominio, sin `https://` (ej. `gym.ejemplo.com.ar`) |
 | `ATLAS_CORS_ALLOWED_ORIGIN` | `https://` + el dominio (ej. `https://gym.ejemplo.com.ar`) |
@@ -224,6 +225,8 @@ Así las claves temporales no quedan escritas en el servidor. Las cuentas ya cre
 - [ ] Anclar la página a la pantalla de inicio (botón "¿Cómo anclar ATLAS…?" del login).
 - [ ] Probar un ingreso con el DNI de un socio real y verlo en **Asistencias**.
 - [ ] Probar sin Internet: apagar el Wi-Fi, marcar un ingreso, prender el Wi-Fi y comprobar que se sincroniza.
+- [ ] Probar el aviso: con el Wi-Fi de la tablet apagado, a los 5 minutos la app de los titulares tiene que mostrar
+      **"El tótem no tiene señal"**. Al prender el Wi-Fi, el cartel se va solo en menos de un minuto.
 
 ### 6.5 Control final
 - [ ] Cobrar una cuota de prueba y **anularla** (con motivo). Revisar que el arqueo del día la excluya.

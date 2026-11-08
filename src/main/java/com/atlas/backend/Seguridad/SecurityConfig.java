@@ -64,7 +64,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Rutas públicas de autenticación, catálogos públicos y kiosk Tótem (protegido por X-Totem-Secret)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/asistencias/totem", "/api/asistencias/totem/sync").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/asistencias/totem", "/api/asistencias/totem/sync", "/api/asistencias/totem/latido").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/asistencias/totem/padron-cache").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/salud").permitAll()
                         // Cualquier otro método (POST, PUT, PATCH, DELETE...) queda bloqueado.

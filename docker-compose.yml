@@ -75,6 +75,8 @@ services:
       ATLAS_ADMIN2_NOMBRE: ${ATLAS_ADMIN2_NOMBRE:-}
       ATLAS_CORS_ALLOWED_ORIGIN: ${ATLAS_CORS_ALLOWED_ORIGIN:-http://localhost:3000}
       ATLAS_TOTEM_SECRET: ${ATLAS_TOTEM_SECRET:-}
+      ATLAS_TOTEM_HORARIO: ${ATLAS_TOTEM_HORARIO:-06:00-23:00}
+      ATLAS_TOTEM_ALERTA_MINUTOS: ${ATLAS_TOTEM_ALERTA_MINUTOS:-5}
       ATLAS_BACK_COMMIT: ${ATLAS_BACK_COMMIT:-}
       ATLAS_SEED_ENABLED: "false"
     # Accesible localmente en el host y por la red interna de Docker (frontend -> http://backend:8080)
