@@ -280,10 +280,12 @@ else
 fi
 
 VERSION_EN_CURSO="$(version_actual_repo ".")"
+ATLAS_BACK_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || true)"
+export ATLAS_BACK_COMMIT
 ATLAS_FRONT_COMMIT="$(git -C "${FRONT_DIR}" rev-parse --short HEAD 2>/dev/null || true)"
 export ATLAS_FRONT_COMMIT
 echo "Versión: ${VERSION_EN_CURSO:-?}"
-echo "Back:    $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+echo "Back:    ${ATLAS_BACK_COMMIT:-?}"
 echo "Front:   ${ATLAS_FRONT_COMMIT:-?}"
 
 # --- 4. Construir y levantar -------------------------------------------------------
