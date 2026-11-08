@@ -35,7 +35,7 @@ El software gestiona un gimnasio comercial real en Argentina próximo a su entre
 - **Base de Datos:** MySQL 8.0 (charset `utf8mb4`, collation `utf8mb4_unicode_ci`, time zone `-03:00`).
 - **Migraciones Versionadas:** Flyway 10 (con `spring.jpa.hibernate.ddl-auto=validate` forzado en producción).
 - **Seguridad:** Spring Security 6 + JJWT 0.12.3 (HMAC-SHA256, expiración 24 hs).
-- **Infraestructura:** Docker Compose + Caddy 2 (Reverse Proxy TLS automático) + Scripts de backup/restore.
+- **Infraestructura:** Docker Compose + Caddy 2 (reverse proxy) detrás de un túnel de Cloudflare (`cloudflared`, HTTPS en Cloudflare) + Scripts de backup/restore.
 
 ---
 
@@ -112,5 +112,6 @@ Copiar de `.env.example`:
 - `ATLAS_ADMIN2_EMAIL`, `ATLAS_ADMIN2_PASSWORD`, `ATLAS_ADMIN2_NOMBRE` (Titular 2)
 - `ATLAS_TOTEM_SECRET` (secreto de la tablet del tótem)
 - `ATLAS_CORS_ALLOWED_ORIGIN=http://localhost:3000,http://192.168.*.*:3000,https://tudominio.com`
-- `ATLAS_DOMAIN=localhost` (o dominio de producción para Caddy TLS)
+- `ATLAS_DOMAIN=localhost` (o el dominio de producción)
+- Túnel (producción): `COMPOSE_PROFILES=tunel`, `CLOUDFLARE_TUNNEL_TOKEN`, `ATLAS_CADDY_SITIO=:80`, `CADDY_BIND=127.0.0.1`
 - `BACKUP_OFFSITE_DIR` y `RCLONE_REMOTE` (opcionales para resguardo en la nube o NAS)

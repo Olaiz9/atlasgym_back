@@ -1,6 +1,7 @@
 # Ensayo general del deploy: levanta el sistema COMPLETO como en el servidor de produccion
 # (docker compose: MySQL 8 + backend + frontend + Caddy con HTTPS), lo prueba de punta a punta
 # y simula un desastre: backup -> borrar la base -> restaurar -> verificar que no falte nada.
+# Al final pasa Caddy al modo tunel de Cloudflare (el de produccion) y lo prueba.
 name: Ensayo de deploy
 
 on:
@@ -61,6 +62,7 @@ jobs:
           NEXT_PUBLIC_API_URL=/backend-api
           BACKEND_INTERNAL_URL=http://backend:8080
           ATLAS_DOMAIN=localhost
+          CADDY_BIND=0.0.0.0
           CADDY_HTTP_PORT=80
           CADDY_HTTPS_PORT=443
           BACKEND_HOST_PORT=8080
@@ -192,6 +194,50 @@ jobs:
             echo "::error::backup-mysql.sh termino bien con una carpeta externa inexistente"; exit 1
           fi
           echo "Fallas de copia externa detectadas OK"
+
+      # Produccion usa el tunel de Cloudflare: Caddy por HTTP solo dentro del servidor y la IP real
+      # del visitante sale de CF-Connecting-IP. El tunel se simula con un curl dentro de la red de
+      # Docker, que es desde donde llega el trafico de cloudflared.
+      - name: Modo tunel (Caddy por HTTP, puertos cerrados, IP real desde CF-Connecting-IP)
+        run: |
+          set -e
+          falla() { echo "::error::$1"; exit 1; }
+          sed -i '/^CADDY_BIND=/d' .env
+          echo 'ATLAS_CADDY_SITIO=:80' >> .env
+          echo 'CADDY_BIND=127.0.0.1' >> .env
+          docker compose up -d caddy
+
+          RED=$(docker inspect atlas-caddy -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+          tunel() { docker run --rm --network "$RED" curlimages/curl:8.11.1 -s "$@"; }
+          codigo() { tunel -o /dev/null -w '%{http_code}' "$@"; }
+
+          # "up caddy" tambien vuelve a levantar el back (lo freno la restauracion): esperar a que responda
+          for i in $(seq 1 60); do [ "$(codigo http://caddy/api/planes)" = "200" ] && break; sleep 3; done
+          [ "$(codigo http://caddy/login)" = "200" ] || falla "Con el tunel, Caddy no sirve la web por HTTP"
+          [ "$(codigo http://caddy/backend-api/planes)" = "200" ] || falla "Con el tunel, /backend-api no llega al backend"
+          [ "$(codigo http://caddy/api/salud)" = "200" ] || falla "Con el tunel, /api/salud no responde"
+
+          # 80 y 443 solo dentro del servidor: nadie llega sin pasar por Cloudflare
+          ss -ltn
+          for p in 80 443; do
+            if ss -ltnH "sport = :$p" | awk '{print $4}' | grep -vqE '^(127\.0\.0\.1|\[::1\]):'; then
+              falla "Con el tunel el puerto $p no debe quedar expuesto fuera del servidor"
+            fi
+          done
+
+          # IP real: 5 logins fallidos desde una IP bloquean a esa IP y no a las demas.
+          # Se prueba por /api (Caddy -> back) y por /backend-api (Caddy -> front -> back).
+          login() {
+            codigo -X POST "http://caddy/$1/auth/login" -H 'Content-Type: application/json' \
+              -H "CF-Connecting-IP: $2" -d '{"email":"titular2@smoke.local","password":"incorrecta"}'
+          }
+          for ruta in api backend-api; do
+            if [ "$ruta" = api ]; then A=203.0.113.10; B=198.51.100.20; else A=203.0.113.30; B=198.51.100.40; fi
+            for i in 1 2 3 4 5; do login "$ruta" "$A" >/dev/null; done
+            [ "$(login "$ruta" "$A")" = "429" ] || falla "/$ruta: la IP $A deberia quedar bloqueada tras 5 intentos"
+            [ "$(login "$ruta" "$B")" = "401" ] || falla "/$ruta: otra IP quedo bloqueada, el back no recibe la IP real"
+          done
+          echo "Modo tunel OK"
 
       - name: Logs de los contenedores
         if: always()
