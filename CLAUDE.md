@@ -61,9 +61,9 @@ Las migraciones residen en `src/main/resources/db/migration/`:
   - `GET /api/auth/perfil` y `PUT /api/auth/perfil`: Consulta y edición de perfil del usuario logueado (cambio de contraseña, teléfono, avatar).
 - **Alumnos (`/api/alumnos`):**
   - `GET /api/alumnos` y `GET /api/alumnos/{id}`: Padrón activo y detalle con estado contable calculado dinámicamente.
-  - `POST /api/alumnos`: Alta de socio con generación de usuario automático (DNI como clave inicial).
+  - `POST /api/alumnos`: Alta de socio con usuario automático y una clave al azar que nadie conoce; el acceso se entrega al cobrar el primer pago o con "Generar clave temporal" (decisión 4, modo mixto).
   - `POST /api/alumnos/importar`: Importador masivo transaccional desde CSV para el Día Cero.
-  - `POST /api/alumnos/{id}/blanquear-clave`: Restablece la clave del socio a su DNI y marca `requiereCambioPassword=true`.
+  - `POST /api/alumnos/{id}/blanquear-clave`: "Generar clave temporal": crea una clave al azar, la devuelve una sola vez y marca `requiereCambioPassword=true`. Solo los socios importados en el Día Cero arrancan con el DNI como clave.
 - **Caja y Finanzas (`/api/pagos`):**
   - `POST /api/pagos`: Registra cobro con guardia `HTTP 409 Conflict` si el período ya fue cubierto. Soporta estado `PARCIAL` (señas) informando `montoAbonado`.
   - `POST /api/pagos/{id}/completar`: Salda el remanente de una seña parcial y lo pasa a `PAGADO`.
