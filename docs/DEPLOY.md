@@ -330,9 +330,7 @@ En **My Settings → Alert Contacts**:
 1. **Email:** Agregar el correo de cada titular (`ATLAS_ADMIN_EMAIL`, `ATLAS_ADMIN2_EMAIL`) y el del equipo técnico.
 2. En la configuración del monitor creado, tildar los contactos de alerta creados.
 
-> **Canales y limitaciones según el plan vigente (fuente oficial: [uptimerobot.com/pricing](https://uptimerobot.com/pricing)):**
-> - **Plan gratuito:** Incluye alertas por **correo electrónico** (Email) y notificaciones push en la app móvil oficial, con intervalos de chequeo cada 5 minutos.
-> - **Canales avanzados (Telegram, Webhooks, Slack, SMS/llamada) o intervalos menores (ej. 60 s):** La disponibilidad de integraciones directas (como Telegram o Webhooks) está sujeta a los términos vigentes del servicio y requiere un plan pago (Solo, Team o PRO). Si la organización cuenta con un plan pago que incluya Telegram, se puede vincular el bot oficial (`@UptimeRobotBot`) como contacto adicional; de lo contrario, utilizar las alertas por email incluidas en el plan gratuito.
+El plan gratis alcanza: avisa por **mail** y por la app de UptimeRobot, y chequea cada 5 minutos. Telegram y Slack son del plan pago (Solo en adelante); si el equipo quiere el aviso en un chat sin pagar, el plan gratis incluye Discord y Google Chat ([precios](https://uptimerobot.com/pricing), [integraciones](https://help.uptimerobot.com/en/articles/11361285-integrations-basic-information)).
 
 ---
 
