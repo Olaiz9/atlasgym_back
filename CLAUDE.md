@@ -62,7 +62,7 @@ Las migraciones residen en `src/main/resources/db/migration/`:
 - **Alumnos (`/api/alumnos`):**
   - `GET /api/alumnos` y `GET /api/alumnos/{id}`: Padrón activo y detalle con estado contable calculado dinámicamente.
   - `POST /api/alumnos`: Alta de socio con generación de usuario automático (DNI como clave inicial).
-  - `POST /api/alumnos/importar`: Importador masivo transaccional desde CSV para el Día Cero.
+  - `POST /api/alumnos/importar`: Importador masivo transaccional desde CSV para el Día Cero. Con `?simular=true` hace un simulacro (mismo proceso, se deshace al final) y devuelve el estado de cuenta con que quedaría cada socio, para revisarlo antes de confirmar.
   - `POST /api/alumnos/{id}/blanquear-clave`: Restablece la clave del socio a su DNI y marca `requiereCambioPassword=true`.
 - **Caja y Finanzas (`/api/pagos`):**
   - `POST /api/pagos`: Registra cobro con guardia `HTTP 409 Conflict` si el período ya fue cubierto. Soporta estado `PARCIAL` (señas) informando `montoAbonado`.

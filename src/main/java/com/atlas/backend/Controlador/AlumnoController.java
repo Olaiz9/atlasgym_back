@@ -1,5 +1,6 @@
 package com.atlas.backend.Controlador;
 
+import com.atlas.backend.Dto.AlumnoImportItemDto;
 import com.atlas.backend.Dto.AlumnoImportRequestDto;
 import com.atlas.backend.Dto.AlumnoImportResponseDto;
 import com.atlas.backend.Dto.AlumnoRequestDto;
@@ -100,19 +101,25 @@ public class AlumnoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
+    /**
+     * Importa el padrón del Día Cero. Con {@code ?simular=true} hace un simulacro: devuelve el mismo
+     * resultado que la importación real (avisos y estado de cuenta de cada socio) sin guardar nada,
+     * para que los titulares lo revisen antes de confirmar.
+     */
     @PostMapping("/importar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AlumnoImportResponseDto> importarPadronMasivo(
             @RequestBody AlumnoImportRequestDto body,
+            @RequestParam(name = "simular", defaultValue = "false") boolean simular,
             Authentication authentication
     ) {
         String operador = (authentication != null && authentication.getName() != null)
                 ? authService.resolverEtiquetaOperador(authentication.getName())
                 : "Admin";
-        AlumnoImportResponseDto res = alumnoService.importarPadronMasivo(
-                body != null ? body.filas() : List.of(),
-                operador
-        );
+        List<AlumnoImportItemDto> filas = body != null ? body.filas() : List.of();
+        AlumnoImportResponseDto res = simular
+                ? alumnoService.simularImportacion(filas, operador)
+                : alumnoService.importarPadronMasivo(filas, operador);
         return ResponseEntity.ok(res);
     }
 

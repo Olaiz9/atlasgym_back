@@ -182,9 +182,11 @@ Así las claves temporales no quedan escritas en el servidor. Las cuentas ya cre
 ### 6.3 Importar los socios (Día Cero)
 - [ ] En Excel: **Archivo → Guardar como → "CSV UTF-8 (delimitado por comas)"**. Subir el `.xlsx` directo no funciona (la pantalla avisa).
 - [ ] Columnas obligatorias: **Nombre** y **DNI**. Opcionales: Celular, Email, Plan, Último mes pago, Monto, Método.
-- [ ] Alumnos → **Importar**: revisar la vista previa y las observaciones **antes** de confirmar.
-- [ ] Al terminar, **leer todos los avisos del servidor** (planes que no existen, DNI repetidos, mails inválidos,
-      cuotas sin monto). Corregir a mano lo que haga falta.
+- [ ] Alumnos → **Importar** → **Revisar**: el sistema hace un simulacro (no guarda nada) y muestra cuántos socios
+      quedarían al día, pendientes y morosos, y los avisos (planes que no existen, DNI repetidos, mails inválidos,
+      cuotas sin monto).
+- [ ] **Revisar con los titulares la lista de morosos** antes de confirmar: si alguien figura moroso y pagó, corregir
+      el "Último mes pago" en el Excel y volver a revisar. Recién cuando la lista esté bien, **Confirmar importación**.
 - [ ] Revisar 3 o 4 socios al azar: plan, estado de la cuota y que la cuota importada aparezca en Finanzas.
 
 ### 6.4 Tablet del tótem
