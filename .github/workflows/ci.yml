@@ -30,9 +30,7 @@ jobs:
           fi
 
       - name: Validar scripts bash (ShellCheck)
-        run: |
-          shellcheck scripts/preparar-servidor.sh
-          shellcheck -S error scripts/*.sh
+        run: shellcheck scripts/*.sh
 
       - name: Simular preparación del servidor (--simular)
         run: |

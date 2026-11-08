@@ -49,3 +49,6 @@ backups/
 
 # Plan comercial del equipo: solo en local / Drive (el repo es publico)
 reportes/PLAN_DE_ACCION_ATLAS_GYM.pdf
+
+# Última versión instalada antes de actualizar (la escribe scripts/actualizar.sh)
+.version-anterior
