@@ -80,9 +80,11 @@ else
   paso "Sin git pull (--sin-git)"
 fi
 
+ATLAS_BACK_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || true)"
+export ATLAS_BACK_COMMIT
 ATLAS_FRONT_COMMIT="$(git -C "${FRONT_DIR}" rev-parse --short HEAD 2>/dev/null || true)"
 export ATLAS_FRONT_COMMIT
-echo "Back:  $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+echo "Back:  ${ATLAS_BACK_COMMIT:-?}"
 echo "Front: ${ATLAS_FRONT_COMMIT:-?}"
 
 # --- 4. Construir y levantar -------------------------------------------------------
