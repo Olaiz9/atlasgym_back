@@ -4,12 +4,15 @@ import com.atlas.backend.Dto.AforoResponseDto;
 import com.atlas.backend.Dto.AsistenciaResponseDto;
 import com.atlas.backend.Dto.TotemCheckInRequestDto;
 import com.atlas.backend.Dto.TotemCheckInResponseDto;
+import com.atlas.backend.Dto.TotemEstadoDto;
+import com.atlas.backend.Dto.TotemLatidoRequestDto;
 import com.atlas.backend.Dto.TotemOfflineSyncRequestDto;
 import com.atlas.backend.Dto.TotemOfflineSyncResponseDto;
 import com.atlas.backend.Dto.TotemPadronItemDto;
 import com.atlas.backend.Excepciones.BusinessException;
 import com.atlas.backend.Servicio.AsistenciaService;
 import com.atlas.backend.Servicio.AuthService;
+import com.atlas.backend.Servicio.TotemMonitorService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,13 +52,16 @@ public class AsistenciaController {
 
     private final AsistenciaService asistenciaService;
     private final AuthService authService;
+    private final TotemMonitorService totemMonitorService;
 
     @Value("${atlas.totem.secret:}")
     private String totemSecretConfigurado;
 
-    public AsistenciaController(AsistenciaService asistenciaService, AuthService authService) {
+    public AsistenciaController(AsistenciaService asistenciaService, AuthService authService,
+                                TotemMonitorService totemMonitorService) {
         this.asistenciaService = asistenciaService;
         this.authService = authService;
+        this.totemMonitorService = totemMonitorService;
     }
 
     @PostMapping("/totem")
@@ -108,6 +115,28 @@ public class AsistenciaController {
         verificarRateLimitTotem(clientIp);
 
         return ResponseEntity.ok(asistenciaService.sincronizarLoteOffline(dto.eventos()));
+    }
+
+    /** Señal de vida de la tablet (una por minuto). Si deja de llegar, los titulares ven "Tótem sin señal". */
+    @PostMapping("/totem/latido")
+    public ResponseEntity<Void> latidoTotem(
+            @Valid @RequestBody(required = false) TotemLatidoRequestDto dto,
+            @RequestHeader(value = "X-Totem-Secret", required = false) String totemSecretHeader,
+            HttpServletRequest request
+    ) {
+        validarSecretoTotemSiConfigurado(totemSecretHeader);
+
+        String clientIp = request != null && request.getRemoteAddr() != null ? request.getRemoteAddr() : "local";
+        verificarRateLimitTotem(clientIp);
+
+        totemMonitorService.registrarLatido(dto == null ? null : dto.pendientesOffline(), LocalDateTime.now());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/totem/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TotemEstadoDto> estadoTotem() {
+        return ResponseEntity.ok(totemMonitorService.obtenerEstado(LocalDateTime.now()));
     }
 
     private void validarSecretoTotemSiConfigurado(String totemSecretHeader) {

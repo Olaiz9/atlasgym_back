@@ -43,13 +43,13 @@ class FlywayEsquemaValidacionTest {
     }
 
     @Test
-    void flywayMigraV1AV6YHibernateValidaElEsquemaCompletoSinDiscrepancias() {
+    void flywayMigraV1AV7YHibernateValidaElEsquemaCompletoSinDiscrepancias() {
         var aplicadas = flyway.info().applied();
-        assertThat(aplicadas).hasSizeGreaterThanOrEqualTo(6);
+        assertThat(aplicadas).hasSizeGreaterThanOrEqualTo(7);
         List<String> versiones = Arrays.stream(aplicadas)
                 .map(info -> info.getVersion().getVersion())
                 .toList();
-        assertThat(versiones).containsExactly("1", "2", "3", "4", "5", "6");
+        assertThat(versiones).containsExactly("1", "2", "3", "4", "5", "6", "7");
         assertThat(Arrays.stream(aplicadas).allMatch(info -> info.getState().isApplied())).isTrue();
     }
 }

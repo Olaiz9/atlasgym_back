@@ -48,6 +48,7 @@ Las migraciones residen en `src/main/resources/db/migration/`:
 - `V4__caja_real_argentina.sql`: Columnas para caja real: `monto_abonado DECIMAL(10,2)`, `registrado_por VARCHAR(100)`, `anulado_por VARCHAR(100)`, `fecha_anulacion DATETIME(6)`, `motivo_anulacion VARCHAR(255)`, e índice `idx_pagos_fecha_estado`.
 - `V5__movimientos_caja.sql`: Tabla `movimientos_caja`: cada ingreso (pago total, seña, saldo, ajuste) con su propio día, método y titular. El arqueo diario se calcula sumando movimientos, no el estado final del comprobante.
 - `V6__configuracion_cobro.sql`: Tabla `configuracion_cobro` (fila única) con alias/titular de transferencia editables por los titulares.
+- `V7__totem_latido.sql`: Tabla `totem_latido` (fila única) con la última señal de vida de la tablet del Tótem y cuántos ingresos tenía sin subir.
 
 > [!CRITICAL]
 > **Regla de Esquema Hibernate:** En perfil `prod`, `spring.jpa.hibernate.ddl-auto` está seteado en `validate`. NUNCA modifiques una entidad JPA sin crear la migración Flyway correspondiente (`V7__...sql`, la siguiente versión libre), de lo contrario la aplicación fallará al arrancar.
@@ -75,6 +76,8 @@ Las migraciones residen en `src/main/resources/db/migration/`:
   - `POST /api/asistencias/totem`: Check-in presencial en tótem autenticado por header `X-Totem-Secret`.
   - `GET /api/asistencias/totem/padron-cache`: Padrón mínimo con límites de días para funcionamiento offline.
   - `POST /api/asistencias/totem/sync`: Procesamiento de cola outbox offline con deduplicación por UUID.
+  - `POST /api/asistencias/totem/latido`: Señal de vida de la tablet (una por minuto, con `X-Totem-Secret`), con los ingresos que tiene sin subir.
+  - `GET /api/asistencias/totem/estado` (ADMIN): `EN_LINEA`, `SIN_SENAL` (sin señal hace más de `ATLAS_TOTEM_ALERTA_MINUTOS` en `ATLAS_TOTEM_HORARIO`), `FUERA_DE_HORARIO` o `NUNCA_CONECTADO`. La app de los titulares muestra un cartel cuando está `SIN_SENAL`.
   - `GET /api/asistencias?fecha=YYYY-MM-DD`: Consulta optimizada para polling en tiempo real.
   - `GET /api/asistencias?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`: Consulta acotada para carga inicial.
 
@@ -111,6 +114,7 @@ Copiar de `.env.example`:
 - `ATLAS_ADMIN_EMAIL`, `ATLAS_ADMIN_PASSWORD`, `ATLAS_ADMIN_NOMBRE` (Titular 1)
 - `ATLAS_ADMIN2_EMAIL`, `ATLAS_ADMIN2_PASSWORD`, `ATLAS_ADMIN2_NOMBRE` (Titular 2)
 - `ATLAS_TOTEM_SECRET` (secreto de la tablet del tótem)
+- `ATLAS_TOTEM_HORARIO` (horario de apertura `HH:mm-HH:mm`, por defecto `06:00-23:00`) y `ATLAS_TOTEM_ALERTA_MINUTOS` (por defecto 5): cuándo avisar "Tótem sin señal"
 - `ATLAS_CORS_ALLOWED_ORIGIN=http://localhost:3000,http://192.168.*.*:3000,https://tudominio.com`
 - `ATLAS_DOMAIN=localhost` (o el dominio de producción)
 - Túnel (producción): `COMPOSE_PROFILES=tunel`, `CLOUDFLARE_TUNNEL_TOKEN`, `ATLAS_CADDY_SITIO=:80`, `CADDY_BIND=127.0.0.1`
