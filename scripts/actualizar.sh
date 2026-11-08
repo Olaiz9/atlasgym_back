@@ -188,6 +188,14 @@ else
   aviso "ATLAS_TOTEM_PIN no está definido: el tótem va a usar el PIN de fábrica 1234."
 fi
 
+# Túnel de Cloudflare (COMPOSE_PROFILES=tunel): sin token no levanta, y con el sitio mal puesto
+# Caddy intenta sacar su propio certificado y la web no carga.
+if [[ ",${COMPOSE_PROFILES:-}," == *",tunel,"* ]]; then
+  [[ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]] || falla "COMPOSE_PROFILES=tunel pero CLOUDFLARE_TUNNEL_TOKEN está vacío. Copialo del panel de Cloudflare (docs/DEPLOY.md, paso 2.1)."
+  [[ "${ATLAS_CADDY_SITIO:-}" == ":80" ]] || falla "Con el túnel, ATLAS_CADDY_SITIO tiene que ser :80 (Cloudflare pone el HTTPS)."
+  [[ "${CADDY_BIND:-127.0.0.1}" == "127.0.0.1" ]] || aviso "Con el túnel conviene CADDY_BIND=127.0.0.1: si no, la web también queda accesible sin pasar por Cloudflare."
+fi
+
 if [[ "${ATLAS_ADMIN_BOOTSTRAP_ENABLED:-false}" == "true" && -n "${ATLAS_ADMIN_PASSWORD:-}" ]]; then
   aviso "El alta inicial de titulares sigue activa. Después del primer ingreso, apagala (docs/DEPLOY.md, paso 5)."
 fi

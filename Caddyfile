@@ -1,12 +1,25 @@
 # ============================================================================
-# ATLAS Gym - Configuración de Reverse Proxy Caddy con TLS automático
+# ATLAS Gym - Caddy (reverse proxy)
 # ============================================================================
-# En producción, configurar ATLAS_DOMAIN en .env con el dominio real (ej. gym.atlas.com.ar)
-# o dejar 'localhost' / ':80' para pruebas locales o intranet.
-# Caddy genera y renueva certificados SSL/TLS automáticamente vía Let's Encrypt / ZeroSSL.
+# Dos modos, según el .env (docs/DEPLOY.md, paso 2.1):
+#  - Túnel de Cloudflare (producción): ATLAS_CADDY_SITIO=:80. Caddy sirve HTTP solo dentro del
+#    servidor; Cloudflare pone el HTTPS y el tráfico entra por el contenedor cloudflared.
+#  - Directo (ensayo del CI, o un servidor con 80/443 abiertos): ATLAS_CADDY_SITIO=<dominio>.
+#    Caddy saca y renueva el certificado HTTPS solo (Let's Encrypt / ZeroSSL).
 # ============================================================================
 
-{$ATLAS_DOMAIN:localhost} {
+{
+    servers {
+        # IP real del visitante. Detrás del túnel todos los pedidos llegan desde cloudflared, así que
+        # sin esto el límite de intentos de login bloquearía a todo el gimnasio a la vez.
+        # CF-Connecting-IP solo se cree si el pedido viene de la red interna de Docker (cloudflared);
+        # desde afuera ese header se ignora y no se puede falsificar.
+        trusted_proxies static 172.16.0.0/12
+        client_ip_headers CF-Connecting-IP
+    }
+}
+
+{$ATLAS_CADDY_SITIO:localhost} {
     encode zstd gzip
 
     # Cabeceras de seguridad HTTP
@@ -17,21 +30,20 @@
         -Server
     }
 
-    # API directa de Spring Boot (preserva IP cliente con X-Forwarded-For)
+    # API directa de Spring Boot. {client_ip} es la IP real (ver arriba); el back la usa para el
+    # límite de intentos de login (server.forward-headers-strategy=framework).
     handle /api/* {
         reverse_proxy backend:8080 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {client_ip}
+            header_up X-Forwarded-For {client_ip}
         }
     }
 
-    # Aplicación web Next.js (y proxy same-origin /backend-api/*)
+    # Aplicación web Next.js (y proxy same-origin /backend-api/*, que reenvía X-Forwarded-For al back)
     handle {
         reverse_proxy frontend:3000 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {client_ip}
+            header_up X-Forwarded-For {client_ip}
         }
     }
 }
