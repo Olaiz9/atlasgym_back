@@ -211,7 +211,8 @@ jobs:
           tunel() { docker run --rm --network "$RED" curlimages/curl:8.11.1 -s "$@"; }
           codigo() { tunel -o /dev/null -w '%{http_code}' "$@"; }
 
-          for i in $(seq 1 30); do [ "$(codigo http://caddy/login)" = "200" ] && break; sleep 2; done
+          # "up caddy" tambien vuelve a levantar el back (lo freno la restauracion): esperar a que responda
+          for i in $(seq 1 60); do [ "$(codigo http://caddy/api/planes)" = "200" ] && break; sleep 3; done
           [ "$(codigo http://caddy/login)" = "200" ] || falla "Con el tunel, Caddy no sirve la web por HTTP"
           [ "$(codigo http://caddy/backend-api/planes)" = "200" ] || falla "Con el tunel, /backend-api no llega al backend"
           [ "$(codigo http://caddy/api/salud)" = "200" ] || falla "Con el tunel, /api/salud no responde"
