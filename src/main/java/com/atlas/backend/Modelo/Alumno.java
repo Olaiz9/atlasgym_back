@@ -44,6 +44,13 @@ public class Alumno {
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
+    /**
+     * Sube cada vez que un titular cambia la ficha (edición, baja, importación). No es el @Version de JPA
+     * a propósito: el check-in del tótem toca ultimaAsistencia y no debe hacer fallar la edición de un titular.
+     */
+    @Column(name = "version_datos", nullable = false)
+    private long versionDatos;
+
     @OneToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Usuario usuario;
@@ -200,6 +207,15 @@ public class Alumno {
 
     public void setUltimaAsistencia(LocalDate ultimaAsistencia) {
         this.ultimaAsistencia = ultimaAsistencia;
+    }
+
+    public long getVersionDatos() {
+        return versionDatos;
+    }
+
+    /** Un titular cambió la ficha: las pantallas que la tenían abierta quedan desactualizadas. */
+    public void marcarEditadaPorTitular() {
+        this.versionDatos++;
     }
 
     public String getFotoUrl() {

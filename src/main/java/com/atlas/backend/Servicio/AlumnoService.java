@@ -151,8 +151,21 @@ public class AlumnoService {
 
     @Transactional
     public AlumnoResponseDto actualizar(Long id, AlumnoRequestDto dto) {
+        // Si quien edita dice qué versión de la ficha vio, se rechaza si otro titular la cambió mientras tanto
+        // (si no, se pisarían sus cambios con datos viejos). Sin versión (clientes viejos) se acepta como antes.
+        if (dto.version() != null && alumnoRepository.avanzarVersionDatos(id, dto.version()) == 0) {
+            if (!alumnoRepository.existsById(id)) {
+                throw new ResourceNotFoundException("Alumno", id);
+            }
+            throw new BusinessException(
+                    "Otro titular cambió los datos de este socio mientras lo editabas. "
+                            + "Ya te mostramos la ficha actualizada: revisala y volvé a guardar tu cambio.", 409);
+        }
         Alumno alumno = alumnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", id));
+        if (dto.version() == null) {
+            alumno.marcarEditadaPorTitular();
+        }
 
         if (!alumno.getDni().equals(dto.dni()) && alumnoRepository.existsByDni(dto.dni())) {
             throw new BusinessException("El nuevo DNI " + dto.dni() + " ya está en uso por otro socio.", 409);
@@ -293,6 +306,7 @@ public class AlumnoService {
             return;
         }
         alumno.setActivo(false);
+        alumno.marcarEditadaPorTitular();
         if (alumno.getUsuario() != null) {
             alumno.getUsuario().setActivo(false);
             usuarioRepository.save(alumno.getUsuario());
@@ -543,7 +557,8 @@ public class AlumnoService {
                 alumno.isActivo(),
                 estadoCuenta,
                 rutinaId,
-                rutinaNombre
+                rutinaNombre,
+                alumno.getVersionDatos()
         );
     }
 
@@ -664,6 +679,7 @@ public class AlumnoService {
                 } else {
                     alumno.setUsuario(crearUsuarioInicialSocio(nombre, dni, celular, simular));
                 }
+                alumno.marcarEditadaPorTitular();
                 alumno = alumnoRepository.saveAndFlush(alumno);
                 actualizados++;
             } else {
