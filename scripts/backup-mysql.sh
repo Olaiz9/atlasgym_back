@@ -37,6 +37,8 @@ DB_PORT_NUM="${DB_HOST_PORT:-3307}"
 OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-}"
 RCLONE_TARGET="${RCLONE_REMOTE:-}"
 PING_URL="${BACKUP_PING_URL:-}"
+# Solo para pruebas (CI, una PC de desarrollo): aceptar un backup sin copia fuera del servidor.
+SOLO_LOCAL="${BACKUP_SOLO_LOCAL:-}"
 
 # Aviso a un monitor externo (healthchecks.io): ping al terminar bien, <url>/fail si algo fallo.
 # Si el ping no llega, el monitor avisa igual (no recibio el ping del dia). Nunca corta el backup.
@@ -96,6 +98,12 @@ chmod 600 "${BACKUP_FILE}"
 find "${BACKUP_DIR}" -maxdepth 1 -type f -name "${DB_NAME}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete
 
 echo "[$(date -Iseconds)] Backup local verificado OK: ${BACKUP_FILE} (${FILE_SIZE} bytes). Retención: ${RETENTION_DAYS} días."
+
+# Copia fuera del servidor (obligatoria): si se rompe el disco, se pierden tambien los backups
+# locales. Sin copia externa configurada el backup termina con error, para que el monitor avise.
+if [[ -z "${OFFSITE_DIR}" && -z "${RCLONE_TARGET}" && "${SOLO_LOCAL}" != "1" ]]; then
+  fallar "No hay copia fuera del servidor: configura RCLONE_REMOTE o BACKUP_OFFSITE_DIR en el .env (docs/DEPLOY.md, 7.1). El backup local quedo en ${BACKUP_FILE}."
+fi
 
 # Copia fuera del servidor: si esta configurada y NO llega, el script termina con error.
 # El backup local se conserva igual. Un aviso [WARN] que nadie lee no sirve: la copia externa

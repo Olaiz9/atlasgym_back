@@ -119,4 +119,5 @@ Copiar de `.env.example`:
 - `ATLAS_CORS_ALLOWED_ORIGIN=http://localhost:3000,http://192.168.*.*:3000,https://tudominio.com`
 - `ATLAS_DOMAIN=localhost` (o el dominio de producción)
 - Túnel (producción): `COMPOSE_PROFILES=tunel`, `CLOUDFLARE_TUNNEL_TOKEN`, `ATLAS_CADDY_SITIO=:80`, `CADDY_BIND=127.0.0.1`
-- `BACKUP_OFFSITE_DIR` y `RCLONE_REMOTE` (opcionales para resguardo en la nube o NAS)
+- `ATLAS_TOTEM_PIN` (obligatorio, 4 dígitos, distinto de `1234`): traba de pantalla de la tablet; la seguridad real es `ATLAS_TOTEM_SECRET`
+- `RCLONE_REMOTE` o `BACKUP_OFFSITE_DIR` (al menos uno, obligatorio): copia de backups fuera del servidor. Sin ninguno, `backup-mysql.sh` termina con error (`BACKUP_SOLO_LOCAL=1` solo para pruebas)
