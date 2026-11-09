@@ -170,7 +170,7 @@ los backups no se pueden restaurar con las mismas credenciales.
 
 El script hace todo en orden y **se frena si algo está mal**:
 
-1. Revisa el `.env`: corta si quedó algún `CAMBIAR_...`, si falta el secreto del tótem o si el PIN no tiene 4 dígitos.
+1. Revisa el `.env`: corta si quedó algún `CAMBIAR_...`, si falta el secreto del tótem o si el PIN está vacío, no tiene 4 dígitos o es `1234`. Avisa si todavía falta la copia de backups fuera del servidor (paso 7.1).
 2. Si la base ya existe, hace un **backup antes de tocar nada**.
 3. Trae el código nuevo de los dos repos (`git pull`).
 4. Construye y levanta los contenedores (la primera vez tarda 5–10 minutos).
@@ -255,8 +255,9 @@ crontab -e
 ### 7.1 Copia fuera del servidor en Google Drive (obligatoria)
 
 Si se rompe el disco del servidor, se pierden también los backups locales. La copia va al
-Google Drive **de la cuenta del gimnasio**. Si `RCLONE_REMOTE` está configurado y la subida falla,
-el backup **termina con error** (el local queda igual) y el monitor del paso 7.2 avisa.
+Google Drive **de la cuenta del gimnasio**. Si no hay copia externa configurada (`RCLONE_REMOTE` o
+`BACKUP_OFFSITE_DIR`), o si la subida falla, el backup **termina con error** (el local queda igual) y
+el monitor del paso 7.2 avisa. Hasta configurarla, `actualizar.sh` tampoco puede hacer su backup previo.
 
 1. En Google Drive (cuenta del gimnasio), crear la carpeta `ATLAS-backups`.
 2. En el servidor, como el usuario que corre el cron:

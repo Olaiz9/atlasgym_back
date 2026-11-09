@@ -181,11 +181,13 @@ fi
 
 [[ -n "${ATLAS_TOTEM_SECRET:-}" ]] || falla "ATLAS_TOTEM_SECRET está vacío: cualquiera podría marcar asistencias. Generalo con: openssl rand -hex 24"
 
-if [[ -n "${ATLAS_TOTEM_PIN:-}" ]]; then
-  [[ "${ATLAS_TOTEM_PIN}" =~ ^[0-9]{4}$ ]] || falla "ATLAS_TOTEM_PIN debe tener exactamente 4 dígitos."
-  [[ "${ATLAS_TOTEM_PIN}" != "1234" ]] || aviso "ATLAS_TOTEM_PIN es 1234 (el de fábrica). Conviene elegir otro."
-else
-  aviso "ATLAS_TOTEM_PIN no está definido: el tótem va a usar el PIN de fábrica 1234."
+[[ -n "${ATLAS_TOTEM_PIN:-}" ]] || falla "ATLAS_TOTEM_PIN está vacío: el tótem quedaría con el PIN de fábrica 1234. Elegí uno de 4 dígitos."
+[[ "${ATLAS_TOTEM_PIN}" =~ ^[0-9]{4}$ ]] || falla "ATLAS_TOTEM_PIN debe tener exactamente 4 dígitos."
+[[ "${ATLAS_TOTEM_PIN}" != "1234" ]] || falla "ATLAS_TOTEM_PIN es 1234 (el de fábrica). Elegí otro."
+
+# Sin copia fuera del servidor el backup diario termina con error (docs/DEPLOY.md, 7.1).
+if [[ -z "${RCLONE_REMOTE:-}" && -z "${BACKUP_OFFSITE_DIR:-}" && "${BACKUP_SOLO_LOCAL:-}" != "1" ]]; then
+  aviso "Falta la copia de backups fuera del servidor (RCLONE_REMOTE o BACKUP_OFFSITE_DIR): hasta configurarla, el backup diario y el backup antes de actualizar terminan con error (docs/DEPLOY.md, 7.1)."
 fi
 
 # Túnel de Cloudflare (COMPOSE_PROFILES=tunel): sin token no levanta, y con el sitio mal puesto
