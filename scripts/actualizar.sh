@@ -191,9 +191,9 @@ fi
 [[ "${ATLAS_TOTEM_PIN}" =~ ^[0-9]{4}$ ]] || falla "ATLAS_TOTEM_PIN debe tener exactamente 4 dígitos."
 [[ "${ATLAS_TOTEM_PIN}" != "1234" ]] || falla "ATLAS_TOTEM_PIN es 1234 (el de fábrica). Elegí otro."
 
-# Sin copia fuera del servidor el backup diario termina con error (docs/DEPLOY.md, 7.1).
+# Sin copia fuera del servidor el backup diario termina con error (docs/DEPLOY.md, 4.1).
 if [[ -z "${RCLONE_REMOTE:-}" && -z "${BACKUP_OFFSITE_DIR:-}" && "${BACKUP_SOLO_LOCAL:-}" != "1" ]]; then
-  aviso "Falta la copia de backups fuera del servidor (RCLONE_REMOTE o BACKUP_OFFSITE_DIR): hasta configurarla, el backup diario y el backup antes de actualizar terminan con error (docs/DEPLOY.md, 7.1)."
+  aviso "Falta la copia de backups fuera del servidor (RCLONE_REMOTE o BACKUP_OFFSITE_DIR): hasta configurarla, el backup diario y el backup antes de actualizar terminan con error (docs/DEPLOY.md, 4.1)."
 fi
 
 # Túnel de Cloudflare (COMPOSE_PROFILES=tunel): sin token no levanta, y con el sitio mal puesto
@@ -206,7 +206,7 @@ fi
 
 # Sin monitor externo, un backup diario roto pasa semanas sin que nadie se entere.
 if [[ -z "${BACKUP_PING_URL:-}" ]]; then
-  aviso "BACKUP_PING_URL está vacío: si el backup diario deja de andar, nadie se va a enterar. Configuralo (docs/DEPLOY.md, 7.2)."
+  aviso "BACKUP_PING_URL está vacío: si el backup diario deja de andar, nadie se va a enterar. Configuralo (docs/DEPLOY.md, 4.2)."
 fi
 
 # Los mails de ejemplo de .env.example crean una cuenta de titular que nadie usa, con la clave temporal.
