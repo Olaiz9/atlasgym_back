@@ -29,6 +29,20 @@ jobs:
             exit 1
           fi
 
+      - name: Verificar permisos ejecutables de scripts
+        shell: bash
+        run: |
+          fallo=0
+          while IFS= read -r -d '' entrada; do
+            modo="${entrada%% *}"
+            archivo="${entrada#*$'\t'}"
+            if [[ "$modo" != "100755" ]]; then
+              echo "::error file=$archivo::El script debe tener modo Git 100755 (actual: $modo)"
+              fallo=1
+            fi
+          done < <(git ls-files --stage -z -- 'scripts/*.sh')
+          exit "$fallo"
+
       - name: Validar scripts bash (ShellCheck)
         run: shellcheck scripts/*.sh
 
