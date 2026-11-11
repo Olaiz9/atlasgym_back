@@ -248,6 +248,53 @@ jobs:
           done
           echo "Modo tunel OK"
 
+      # Guardas de actualizar.sh (issue #36): root, mail de ejemplo y reintento de --version.
+      - name: Guardas de actualizar.sh (root, mail de ejemplo, reintento)
+        run: |
+          set -e
+          falla() { echo "::error::$1"; exit 1; }
+          shellcheck -S warning scripts/actualizar.sh
+          cuantos_backups() { find backups -maxdepth 1 -name 'atlas_gym_*.sql.gz' 2>/dev/null | wc -l; }
+
+          # 1. Como root corta antes de tocar nada
+          printf 'back=CENTINELA\nfront=CENTINELA\nbackup=\n' > .version-anterior
+          ANTES=$(cuantos_backups)
+          if SALIDA=$(sudo -E bash scripts/actualizar.sh --sin-git 2>&1); then
+            falla "actualizar.sh corrio como root sin cortar"
+          fi
+          echo "$SALIDA" | grep -q "No lo corras como root" || falla "Como root el mensaje no es claro: $SALIDA"
+          [ "$(cuantos_backups)" = "$ANTES" ] || falla "Como root llego a hacer el backup"
+          echo "Corte como root OK"
+
+          # 2. Con el mail de ejemplo de .env.example corta antes del backup
+          cp .env .env.respaldo
+          sed -i 's/^ATLAS_ADMIN2_EMAIL=.*/ATLAS_ADMIN2_EMAIL=Dueno2@atlasgym.com.ar/' .env
+          if SALIDA=$(bash scripts/actualizar.sh --sin-git 2>&1); then
+            mv .env.respaldo .env; falla "actualizar.sh siguio con el mail de ejemplo"
+          fi
+          mv .env.respaldo .env
+          echo "$SALIDA" | grep -q "mail de ejemplo" || falla "Con el mail de ejemplo el mensaje no es claro: $SALIDA"
+          [ "$(cuantos_backups)" = "$ANTES" ] || falla "Con el mail de ejemplo llego a hacer el backup"
+          grep -qx 'back=CENTINELA' .version-anterior || falla "Con el mail de ejemplo se toco .version-anterior"
+          echo "Corte por mail de ejemplo OK"
+
+          # 3. Reintento: back y front ya estan en el tag destino -> .version-anterior queda igual
+          git tag v9.9.9
+          git -C front-src tag v9.9.9
+          bash scripts/actualizar.sh --version v9.9.9 | tee salida-reintento.txt
+          grep -q "reintento" salida-reintento.txt || falla "No detecto que ya estaba en la version destino"
+          grep -qx 'back=CENTINELA' .version-anterior || falla "El reintento piso .version-anterior: $(cat .version-anterior)"
+          bash scripts/actualizar.sh --version v9.9.9 >/dev/null
+          grep -qx 'back=CENTINELA' .version-anterior || falla "El segundo reintento piso .version-anterior"
+          echo "Reintento de --version sin pisar .version-anterior OK"
+
+          # 4. Sin .version-anterior (primera actualizacion) se escribe como siempre
+          rm -f .version-anterior
+          bash scripts/actualizar.sh --version v9.9.9 >/dev/null
+          grep -q '^back=' .version-anterior || falla "Sin archivo previo no se guardo .version-anterior"
+          git tag -d v9.9.9 >/dev/null; git -C front-src tag -d v9.9.9 >/dev/null
+          echo "Guardas de actualizar.sh OK"
+
       - name: Logs de los contenedores
         if: always()
         run: docker compose logs --no-color > compose-logs.txt 2>&1 || true
