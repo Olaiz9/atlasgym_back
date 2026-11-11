@@ -127,7 +127,7 @@ jobs:
               "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM usuarios), (SELECT COUNT(*) FROM alumnos), (SELECT COUNT(*) FROM planes), (SELECT COUNT(*) FROM pagos), (SELECT COUNT(*) FROM movimientos_caja), (SELECT COUNT(*) FROM asistencias))"
           }
 
-          bash scripts/backup-mysql.sh
+          ./scripts/backup-mysql.sh
           ARCHIVO=$(ls -t backups/atlas_gym_*.sql.gz | head -1)
           ANTES=$(contar)
           echo "Backup: $ARCHIVO ($(wc -c < "$ARCHIVO") bytes)"
@@ -186,18 +186,18 @@ jobs:
           sudo apt-get install -y -qq rclone >/dev/null
           ANTES=$(ls backups/atlas_gym_*.sql.gz | wc -l)
           sleep 1
-          if RCLONE_REMOTE="remoto-inexistente:atlas" bash scripts/backup-mysql.sh; then
+          if RCLONE_REMOTE="remoto-inexistente:atlas" ./scripts/backup-mysql.sh; then
             echo "::error::backup-mysql.sh termino bien aunque la copia externa no llego"; exit 1
           fi
           DESPUES=$(ls backups/atlas_gym_*.sql.gz | wc -l)
           [ "$DESPUES" -gt "$ANTES" ] || { echo "::error::No quedo el backup local"; exit 1; }
-          if BACKUP_OFFSITE_DIR="/no/existe" bash scripts/backup-mysql.sh; then
+          if BACKUP_OFFSITE_DIR="/no/existe" ./scripts/backup-mysql.sh; then
             echo "::error::backup-mysql.sh termino bien con una carpeta externa inexistente"; exit 1
           fi
           # Sin ninguna copia externa configurada (y sin BACKUP_SOLO_LOCAL) tambien tiene que fallar
           cp .env /tmp/env-ensayo
           sed -i '/^BACKUP_SOLO_LOCAL=/d' .env
-          if bash scripts/backup-mysql.sh; then
+          if ./scripts/backup-mysql.sh; then
             cp /tmp/env-ensayo .env
             echo "::error::backup-mysql.sh termino bien sin copia fuera del servidor"; exit 1
           fi
