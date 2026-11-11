@@ -128,7 +128,7 @@ echo "[$(date -Iseconds)] Backup local verificado OK: ${BACKUP_FILE} (${FILE_SIZ
 # Copia fuera del servidor (obligatoria): si se rompe el disco, se pierden tambien los backups
 # locales. Sin copia externa configurada el backup termina con error, para que el monitor avise.
 if [[ -z "${OFFSITE_DIR}" && -z "${RCLONE_TARGET}" && "${SOLO_LOCAL}" != "1" ]]; then
-  fallar "No hay copia fuera del servidor: configura RCLONE_REMOTE o BACKUP_OFFSITE_DIR en el .env (docs/DEPLOY.md, 7.1). El backup local quedo en ${BACKUP_FILE}."
+  fallar "No hay copia fuera del servidor: configura RCLONE_REMOTE o BACKUP_OFFSITE_DIR en el .env (docs/DEPLOY.md, 4.1). El backup local quedo en ${BACKUP_FILE}."
 fi
 
 # Copia fuera del servidor: si esta configurada y NO llega, el script termina con error.
