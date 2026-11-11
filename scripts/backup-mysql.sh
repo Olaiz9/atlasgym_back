@@ -3,7 +3,7 @@
 # ATLAS Gym - Backup Diario Automatizado de MySQL (Linux / VPS / Cron)
 # Incluye validación de integridad gzip y hooks de resguardo offsite (nube / NAS).
 # Ejemplo crontab (todos los días a las 03:30 AM):
-#   30 3 * * * /opt/atlasgym_back/scripts/backup-mysql.sh >> /var/log/atlas-backup.log 2>&1
+#   30 3 * * * /opt/atlas/atlasgym_back/scripts/backup-mysql.sh >> /opt/atlas/backup.log 2>&1
 # ============================================================================
 
 set -euo pipefail
@@ -39,11 +39,22 @@ RCLONE_TARGET="${RCLONE_REMOTE:-}"
 PING_URL="${BACKUP_PING_URL:-}"
 # Solo para pruebas (CI, una PC de desarrollo): aceptar un backup sin copia fuera del servidor.
 SOLO_LOCAL="${BACKUP_SOLO_LOCAL:-}"
+# Espacio libre minimo (MB) en el disco de BACKUP_DIR para arrancar: con el disco casi lleno,
+# el dump corta a mitad y MySQL tambien sufre. Mejor fallar antes y que el monitor avise.
+MIN_LIBRE_MB="${BACKUP_MIN_LIBRE_MB:-1024}"
+# Dias que se guardan los backups en el remoto rclone. Vacio = no se borra nada alla.
+RCLONE_RETENCION="${RCLONE_RETENTION_DAYS:-}"
+TMP_FILE=""
 
-# Aviso a un monitor externo (healthchecks.io): ping al terminar bien, <url>/fail si algo fallo.
+# Al salir: si fallo, borrar el .tmp a medio escribir (la limpieza solo mira *.sql.gz y
+# los .tmp se juntaban hasta llenar el disco). Despues, aviso al monitor externo.
+# Monitor (healthchecks.io): ping al terminar bien, <url>/fail si algo fallo.
 # Si el ping no llega, el monitor avisa igual (no recibio el ping del dia). Nunca corta el backup.
 avisar_monitor() {
   local rc=$?
+  if [[ ${rc} -ne 0 && -n "${TMP_FILE}" ]]; then
+    rm -f "${TMP_FILE}" || true
+  fi
   if [[ -n "${PING_URL}" ]] && command -v curl >/dev/null 2>&1; then
     local destino="${PING_URL}"
     [[ ${rc} -ne 0 ]] && destino="${PING_URL%/}/fail"
@@ -58,7 +69,22 @@ fallar() {
   exit 1
 }
 
+[[ "${MIN_LIBRE_MB}" =~ ^[0-9]+$ ]] || fallar "BACKUP_MIN_LIBRE_MB='${MIN_LIBRE_MB}' tiene que ser un numero de MB."
+if [[ -n "${RCLONE_RETENCION}" && ! "${RCLONE_RETENCION}" =~ ^[1-9][0-9]*$ ]]; then
+  fallar "RCLONE_RETENTION_DAYS='${RCLONE_RETENCION}' tiene que ser un numero de dias mayor que 0 (o vacio para no borrar nada)."
+fi
+
 mkdir -p "${BACKUP_DIR}"
+
+# Espacio libre antes de empezar
+LIBRE_MB="$(df -Pm "${BACKUP_DIR}" 2>/dev/null | awk 'NR==2 {print $4}' || true)"
+if [[ "${LIBRE_MB}" =~ ^[0-9]+$ ]]; then
+  if [[ "${LIBRE_MB}" -lt "${MIN_LIBRE_MB}" ]]; then
+    fallar "Quedan ${LIBRE_MB} MB libres en el disco de '${BACKUP_DIR}' (minimo: ${MIN_LIBRE_MB} MB). Libera espacio: no se hizo el backup."
+  fi
+else
+  echo "[WARN] No pude medir el espacio libre de '${BACKUP_DIR}' (df). Sigo igual." >&2
+fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_${TIMESTAMP}.sql.gz"
@@ -127,6 +153,17 @@ if [[ -n "${RCLONE_TARGET}" ]]; then
   # Confirmar que el archivo esta del otro lado y pesa lo mismo
   rclone check "${BACKUP_DIR}" "${RCLONE_TARGET}" --one-way --size-only     --include "$(basename "${BACKUP_FILE}")" >/dev/null 2>&1     || fallar "El backup no aparece completo en '${RCLONE_TARGET}' despues de subirlo."
   echo "[$(date -Iseconds)] Copia en '${RCLONE_TARGET}' verificada OK."
+
+  # Poda del remoto (opcional): sin esto los backups se acumulan para siempre en Drive.
+  # Solo toca archivos con el nombre de los backups de esta base, en la carpeta de arriba.
+  if [[ -n "${RCLONE_RETENCION}" ]]; then
+    if rclone delete "${RCLONE_TARGET}" --min-age "${RCLONE_RETENCION}d" --max-depth 1 \
+         --include "${DB_NAME}_*.sql.gz" >/dev/null 2>&1; then
+      echo "[$(date -Iseconds)] Remoto podado: se borraron los backups de mas de ${RCLONE_RETENCION} dias."
+    else
+      echo "[WARN] No se pudieron borrar los backups viejos en '${RCLONE_TARGET}'. El backup de hoy esta OK." >&2
+    fi
+  fi
 fi
 
 echo "[$(date -Iseconds)] Backup terminado OK."

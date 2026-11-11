@@ -27,6 +27,12 @@ falla() { echo "ERROR: $*" >&2; exit 1; }
 aviso() { echo "AVISO: $*" >&2; }
 uso() { falla "Uso: $0 [--sin-git | --version vMAYOR.MENOR.PARCHE | --volver]"; }
 
+# Como root (o con sudo) Git rechaza el repo de otro dueño y el .env y backups/ quedan de root:
+# después el backup diario, que corre como atlas, falla. Se corre siempre como el usuario atlas.
+if [[ "${EUID}" -eq 0 ]]; then
+  falla "No lo corras como root ni con sudo: entrá como el usuario atlas y corré ./scripts/actualizar.sh (docs/DEPLOY.md). No se tocó nada."
+fi
+
 MODO="pull"
 VERSION_DESTINO=""
 VERSION_BACK_DESTINO=""
@@ -198,6 +204,24 @@ if [[ ",${COMPOSE_PROFILES:-}," == *",tunel,"* ]]; then
   [[ "${CADDY_BIND:-127.0.0.1}" == "127.0.0.1" ]] || aviso "Con el túnel conviene CADDY_BIND=127.0.0.1: si no, la web también queda accesible sin pasar por Cloudflare."
 fi
 
+# Sin monitor externo, un backup diario roto pasa semanas sin que nadie se entere.
+if [[ -z "${BACKUP_PING_URL:-}" ]]; then
+  aviso "BACKUP_PING_URL está vacío: si el backup diario deja de andar, nadie se va a enterar. Configuralo (docs/DEPLOY.md, 7.2)."
+fi
+
+# Los mails de ejemplo de .env.example crean una cuenta de titular que nadie usa, con la clave temporal.
+for var_mail in ATLAS_ADMIN_EMAIL ATLAS_ADMIN2_EMAIL; do
+  mail_valor="${!var_mail:-}"
+  case "${mail_valor,,}" in
+    dueno1@atlasgym.com.ar|dueno2@atlasgym.com.ar)
+      falla "${var_mail}=${mail_valor} es el mail de ejemplo de .env.example. Poné el mail real del titular. No se tocó nada." ;;
+  esac
+done
+
+if [[ ",${COMPOSE_PROFILES:-}," == *",tunel,"* ]] && [[ -z "${ATLAS_DOMAIN:-}" || "${ATLAS_DOMAIN}" == "localhost" ]]; then
+  aviso "ATLAS_DOMAIN está vacío o en localhost: poné el dominio del gimnasio (sin https://) para que los mensajes apunten a la dirección real."
+fi
+
 if [[ "${ATLAS_ADMIN_BOOTSTRAP_ENABLED:-false}" == "true" && -n "${ATLAS_ADMIN_PASSWORD:-}" ]]; then
   aviso "El alta inicial de titulares sigue activa. Después del primer ingreso, apagala (docs/DEPLOY.md, paso 5)."
 fi
@@ -249,6 +273,21 @@ guardar_estado_version_anterior() {
   fi
 }
 
+# true si back y front ya están en el commit destino (se está reintentando una actualización que
+# falló después del checkout). En ese caso .version-anterior ya tiene la versión de verdad anterior
+# y pisarlo con la de ahora dejaría --volver sin a dónde volver.
+ya_en_destino() {
+  local destino_back="$1"
+  local destino_front="$2"
+  [[ -s "${VERSION_ANTERIOR_FILE}" ]] || return 1
+  local head_back head_front commit_back commit_front
+  head_back="$(git rev-parse -q --verify HEAD 2>/dev/null)" || return 1
+  head_front="$(git -C "${FRONT_DIR}" rev-parse -q --verify HEAD 2>/dev/null)" || return 1
+  commit_back="$(git rev-parse -q --verify "${destino_back}^{commit}" 2>/dev/null)" || return 1
+  commit_front="$(git -C "${FRONT_DIR}" rev-parse -q --verify "${destino_front}^{commit}" 2>/dev/null)" || return 1
+  [[ "${head_back}" == "${commit_back}" && "${head_front}" == "${commit_front}" ]]
+}
+
 mostrar_aviso_migracion_volver() {
   local ruta_mostrar="${BACKUP_GUARDADO_ANTERIOR:-backups/${DB_BACKUP_PREFIX}_AAAAMMDD_HHMMSS.sql.gz}"
   echo
@@ -262,9 +301,13 @@ mostrar_aviso_migracion_volver() {
 
 # --- 3. Código nuevo -----------------------------------------------------------
 if [[ "${MODO}" == "version" ]]; then
-  BACK_ANTES="$(version_para_guardar ".")"
-  FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"
-  guardar_estado_version_anterior "${BACK_ANTES}" "${FRONT_ANTES}" "${BACKUP_RECIEN_HECHO}"
+  if ya_en_destino "${VERSION_BACK_DESTINO}" "${VERSION_FRONT_DESTINO}"; then
+    echo "Ya estás en '${VERSION_DESTINO}' (reintento): .version-anterior se deja como estaba."
+  else
+    BACK_ANTES="$(version_para_guardar ".")"
+    FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"
+    guardar_estado_version_anterior "${BACK_ANTES}" "${FRONT_ANTES}" "${BACKUP_RECIEN_HECHO}"
+  fi
 
   paso "Cambiando a la versión '${VERSION_DESTINO}' en back y front"
   git -c advice.detachedHead=false checkout "${VERSION_BACK_DESTINO}"
@@ -278,9 +321,15 @@ elif [[ "${MODO}" == "volver" ]]; then
   git -C "${FRONT_DIR}" -c advice.detachedHead=false checkout "${VERSION_FRONT_DESTINO}"
   mostrar_aviso_migracion_volver
 elif [[ "${MODO}" == "pull" ]]; then
-  BACK_ANTES="$(version_para_guardar ".")"
-  FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"
-  guardar_estado_version_anterior "${BACK_ANTES}" "${FRONT_ANTES}" "${BACKUP_RECIEN_HECHO}"
+  git fetch --quiet || true
+  git -C "${FRONT_DIR}" fetch --quiet || true
+  if ya_en_destino "@{u}" "@{u}"; then
+    echo "Back y front ya tienen lo último (reintento): .version-anterior se deja como estaba."
+  else
+    BACK_ANTES="$(version_para_guardar ".")"
+    FRONT_ANTES="$(version_para_guardar "${FRONT_DIR}")"
+    guardar_estado_version_anterior "${BACK_ANTES}" "${FRONT_ANTES}" "${BACKUP_RECIEN_HECHO}"
+  fi
 
   paso "Trayendo código nuevo (back: $(git rev-parse --abbrev-ref HEAD), front: $(git -C "${FRONT_DIR}" rev-parse --abbrev-ref HEAD))"
   git pull --ff-only
