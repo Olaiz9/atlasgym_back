@@ -204,6 +204,51 @@ jobs:
           cp /tmp/env-ensayo .env
           echo "Fallas de copia externa detectadas OK"
 
+      # Un dump fallido no deja .tmp, con poco disco no arranca, y el remoto se poda solo si se pide.
+      - name: Backup sin .tmp al fallar, con espacio en disco y poda del remoto
+        run: |
+          set -e
+          falla() { echo "::error::$1"; exit 1; }
+
+          # 1. Dump fallido (clave de base mala): termina con error y no deja .tmp
+          cp .env /tmp/env-34
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=clave-mala/' .env
+          if bash scripts/backup-mysql.sh; then cp /tmp/env-34 .env; falla "El backup termino bien con la clave de base mala"; fi
+          cp /tmp/env-34 .env
+          [ -z "$(ls backups/*.tmp 2>/dev/null)" ] || falla "Quedo un .tmp despues de un backup fallido: $(ls backups/*.tmp)"
+          echo "Dump fallido sin .tmp OK"
+
+          # 2. Poco disco: corta antes del dump y no crea ningun archivo
+          ANTES=$(ls backups/ | wc -l)
+          if SALIDA=$(BACKUP_MIN_LIBRE_MB=999999999 bash scripts/backup-mysql.sh 2>&1); then
+            falla "El backup arranco aunque no habia espacio suficiente"
+          fi
+          echo "$SALIDA" | grep -q "MB libres" || falla "El backup fallo sin explicar que falta espacio: $SALIDA"
+          [ "$(ls backups/ | wc -l)" = "$ANTES" ] || falla "Sin espacio igual se creo un archivo en backups/"
+          echo "Corte por poco disco OK"
+
+          # 3. Poda del remoto (una carpeta local hace de remoto rclone): borra solo backups viejos
+          REMOTO=/tmp/remoto-backups
+          rm -rf "$REMOTO" && mkdir -p "$REMOTO"
+          touch -d '40 days ago' "$REMOTO/atlas_gym_20200101_033000.sql.gz" "$REMOTO/otro-archivo.txt"
+          sleep 1
+          RCLONE_REMOTE="$REMOTO" RCLONE_RETENTION_DAYS=30 bash scripts/backup-mysql.sh
+          [ ! -e "$REMOTO/atlas_gym_20200101_033000.sql.gz" ] || falla "La poda no borro el backup viejo del remoto"
+          [ -e "$REMOTO/otro-archivo.txt" ] || falla "La poda borro un archivo que no era un backup"
+          [ "$(ls "$REMOTO"/atlas_gym_*.sql.gz | wc -l)" = "1" ] || falla "Falta el backup de hoy en el remoto"
+
+          # 4. Sin RCLONE_RETENTION_DAYS no se borra nada en el remoto
+          touch -d '40 days ago' "$REMOTO/atlas_gym_20200102_033000.sql.gz"
+          sleep 1
+          RCLONE_REMOTE="$REMOTO" bash scripts/backup-mysql.sh
+          [ -e "$REMOTO/atlas_gym_20200102_033000.sql.gz" ] || falla "Sin RCLONE_RETENTION_DAYS se borro un backup del remoto"
+
+          # 5. Un valor invalido corta antes de hacer nada (0 borraria todo, incluido el de hoy)
+          if RCLONE_REMOTE="$REMOTO" RCLONE_RETENTION_DAYS=0 bash scripts/backup-mysql.sh; then
+            falla "RCLONE_RETENTION_DAYS=0 fue aceptado"
+          fi
+          echo "Poda del remoto OK"
+
       # Produccion usa el tunel de Cloudflare: Caddy por HTTP solo dentro del servidor y la IP real
       # del visitante sale de CF-Connecting-IP. El tunel se simula con un curl dentro de la red de
       # Docker, que es desde donde llega el trafico de cloudflared.
