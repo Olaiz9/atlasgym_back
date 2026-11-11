@@ -68,13 +68,16 @@ services:
       ATLAS_JWT_EXPIRATION: ${ATLAS_JWT_EXPIRATION:-86400000}
       ATLAS_ADMIN_BOOTSTRAP_ENABLED: ${ATLAS_ADMIN_BOOTSTRAP_ENABLED:-true}
       ATLAS_ADMIN_EMAIL: ${ATLAS_ADMIN_EMAIL:?Definir ATLAS_ADMIN_EMAIL en .env}
-      ATLAS_ADMIN_PASSWORD: ${ATLAS_ADMIN_PASSWORD:?Definir ATLAS_ADMIN_PASSWORD en .env}
+      # Puede quedar vacia: la guia la manda vaciar al apagar el alta inicial. Con el alta prendida,
+      # el back (AdminInitializer) rechaza una clave vacia o insegura al arrancar.
+      ATLAS_ADMIN_PASSWORD: ${ATLAS_ADMIN_PASSWORD:-}
       ATLAS_ADMIN_NOMBRE: ${ATLAS_ADMIN_NOMBRE:-}
       ATLAS_ADMIN2_EMAIL: ${ATLAS_ADMIN2_EMAIL:-}
       ATLAS_ADMIN2_PASSWORD: ${ATLAS_ADMIN2_PASSWORD:-}
       ATLAS_ADMIN2_NOMBRE: ${ATLAS_ADMIN2_NOMBRE:-}
       ATLAS_CORS_ALLOWED_ORIGIN: ${ATLAS_CORS_ALLOWED_ORIGIN:-http://localhost:3000}
-      ATLAS_TOTEM_SECRET: ${ATLAS_TOTEM_SECRET:-}
+      # Obligatoria: sin ella cualquiera podria marcar asistencias contra la API.
+      ATLAS_TOTEM_SECRET: ${ATLAS_TOTEM_SECRET:?Definir ATLAS_TOTEM_SECRET en .env (generar con openssl rand -hex 24)}
       ATLAS_TOTEM_HORARIO: ${ATLAS_TOTEM_HORARIO:-06:00-23:00}
       ATLAS_TOTEM_ALERTA_MINUTOS: ${ATLAS_TOTEM_ALERTA_MINUTOS:-5}
       ATLAS_BACK_COMMIT: ${ATLAS_BACK_COMMIT:-}

@@ -248,6 +248,45 @@ jobs:
           done
           echo "Modo tunel OK"
 
+      # docs/DEPLOY.md manda apagar el alta inicial y vaciar las claves de los titulares despues del
+      # primer ingreso. Desde ahi tienen que seguir andando todos los "docker compose" y el sistema.
+      - name: Alta inicial apagada y claves de titulares vacias
+        run: |
+          set -e
+          falla() { echo "::error::$1"; exit 1; }
+          sed -i -e 's/^ATLAS_ADMIN_BOOTSTRAP_ENABLED=.*/ATLAS_ADMIN_BOOTSTRAP_ENABLED=false/' \
+                 -e 's/^ATLAS_ADMIN_PASSWORD=.*/ATLAS_ADMIN_PASSWORD=/' \
+                 -e 's/^ATLAS_ADMIN2_PASSWORD=.*/ATLAS_ADMIN2_PASSWORD=/' .env
+          [ "$(grep -cE '^ATLAS_ADMIN2?_PASSWORD=$' .env)" = "2" ] || falla "No se vaciaron las claves en el .env"
+
+          docker compose ps >/dev/null || falla "Con la clave vacia, 'docker compose ps' falla"
+          docker compose logs --tail 5 backend >/dev/null || falla "Con la clave vacia, 'docker compose logs' falla"
+          docker compose up -d backend || falla "Con la clave vacia, 'docker compose up' falla"
+
+          # El back tiene que volver a crearse con el alta apagada (si no, la prueba no prueba nada)
+          [ "$(docker inspect atlas-backend -f '{{range .Config.Env}}{{println .}}{{end}}' | grep -c '^ATLAS_ADMIN_BOOTSTRAP_ENABLED=false$')" = "1" ] \
+            || falla "El back no se recreo con ATLAS_ADMIN_BOOTSTRAP_ENABLED=false"
+
+          OK=""
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8080/api/salud | grep -q '"estado":"ok"'; then OK=1; break; fi
+            sleep 3
+          done
+          [ -n "$OK" ] || { docker compose logs --tail 80 backend; falla "Con el alta apagada el back no arranca"; }
+
+          # Las cuentas ya creadas siguen entrando con su clave: vaciar la variable no las toca
+          [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/api/auth/login \
+               -H 'Content-Type: application/json' \
+               -d '{"email":"titular1@smoke.local","password":"SmokeTitular1!"}')" = "200" ] \
+            || falla "El titular 1 no puede entrar despues de apagar el alta inicial"
+
+          # Sin la clave del totem, el compose corta con un mensaje claro (antes arrancaba sin ella)
+          if SALIDA=$(ATLAS_TOTEM_SECRET= docker compose config -q 2>&1); then
+            falla "Sin ATLAS_TOTEM_SECRET 'docker compose' deberia cortar"
+          fi
+          echo "$SALIDA" | grep -q "Definir ATLAS_TOTEM_SECRET" || falla "Sin ATLAS_TOTEM_SECRET el mensaje no es claro: $SALIDA"
+          echo "Alta apagada con claves vacias OK; sin clave del totem, el compose corta OK"
+
       - name: Logs de los contenedores
         if: always()
         run: docker compose logs --no-color > compose-logs.txt 2>&1 || true
