@@ -1,0 +1,102 @@
+# CI del backend: corre en cada push y en cada Pull Request.
+# Si algun paso falla, el commit/PR queda marcado en rojo en GitHub.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Si se sube un commit nuevo a la misma rama, se cancela la corrida anterior (ahorra minutos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Maven, Java 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # Atrapa restos de conflictos de merge (<<<<<<<, =======, >>>>>>>) en cualquier archivo,
+      # incluso en los que ningun test ejecuta (ej.: Dockerfile).
+      - name: Sin marcadores de conflicto
+        run: |
+          if git grep -n -I -E '^(<<<<<<<|=======|>>>>>>>)(\s|$)' -- . ':!*.md'; then
+            echo "::error::Quedaron marcadores de conflicto de merge (ver lineas arriba)"
+            exit 1
+          fi
+
+      - name: Validar scripts bash (ShellCheck)
+        run: shellcheck scripts/*.sh
+
+      - name: Simular preparación del servidor (--simular)
+        run: |
+          bash scripts/preparar-servidor.sh --simular
+          bash scripts/preparar-servidor.sh --simular --abrir-web
+
+      # Misma version de Java que la imagen de produccion (eclipse-temurin:17).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Los tests usan H2 en memoria (src/test/resources/application.properties):
+      # no necesitan MySQL ni secretos.
+      - name: Compilar y correr tests
+        run: ./mvnw -B clean test
+
+      # Informe HTML de cobertura (JaCoCo): se descarga desde la pagina de la corrida (seccion "Artifacts").
+      - name: Guardar informe de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-back
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+
+      # Si falla, se pueden descargar los reportes desde la pagina de la corrida.
+      - name: Guardar reportes de tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-surefire
+          path: target/surefire-reports/
+
+  tests-mysql:
+    name: Tests contra MySQL 8
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Corre toda la suite contra un MySQL 8 real levantado con Testcontainers,
+      # ejecutando Flyway V1..Vn y validando el esquema con ddl-auto=validate.
+      - name: Compilar y correr tests contra MySQL 8
+        run: ./mvnw -B -Pmysql test
+
+      - name: Guardar reportes de tests (MySQL 8)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-surefire-mysql
+          path: target/surefire-reports/
+
+  docker:
+    name: Imagen Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      # Solo verifica que la imagen de produccion se construya; no la publica en ningun lado.
+      - name: Construir imagen
+        run: docker build -t atlasgym-back:ci .
