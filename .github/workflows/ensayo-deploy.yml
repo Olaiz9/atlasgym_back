@@ -119,6 +119,48 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-api.ps1 -Base http://127.0.0.1:8080
 
+      # Rollback: la base tiene una tabla que el backup no conoce (como la de una migracion nueva).
+      # Restaurar tiene que dejar la base IGUAL al backup, sin esa tabla, y el back andando.
+      - name: Simulacro de rollback (restaurar sobre una base con una tabla de mas)
+        run: |
+          set -e
+          sql() { docker exec -e MYSQL_PWD="$DB_PASS" atlas-mysql mysql -N -u atlas_app atlas_gym -e "$1"; }
+          contar() {
+            sql "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM usuarios), (SELECT COUNT(*) FROM alumnos), (SELECT COUNT(*) FROM planes), (SELECT COUNT(*) FROM pagos), (SELECT COUNT(*) FROM movimientos_caja), (SELECT COUNT(*) FROM asistencias))"
+          }
+
+          bash scripts/backup-mysql.sh
+          ARCHIVO=$(ls -t backups/atlas_gym_*.sql.gz | head -1)
+          ANTES=$(contar)
+          sql "CREATE TABLE huerfana (id INT PRIMARY KEY); INSERT INTO huerfana VALUES (1);"
+          echo "Tablas antes de restaurar: $(sql 'SHOW TABLES' | wc -l) (incluye huerfana)"
+
+          bash scripts/restore-mysql.sh "$ARCHIVO" --yes
+
+          [ -z "$(sql "SHOW TABLES LIKE 'huerfana'")" ] || { echo "::error::La tabla huerfana sigue despues de restaurar"; exit 1; }
+          DESPUES=$(contar)
+          [ "$ANTES" = "$DESPUES" ] || { echo "::error::Los datos no coinciden: antes=$ANTES despues=$DESPUES"; exit 1; }
+          curl -sf http://127.0.0.1:8080/api/salud | grep -q '"estado":"ok"' || { echo "::error::El back no responde despues de restaurar"; exit 1; }
+          PREVIA=$(ls -t backups/pre_restore_atlas_gym_*.sql.gz | head -1)
+          gzip -dc "$PREVIA" | grep -q 'CREATE TABLE `huerfana`' || { echo "::error::La copia previa no tiene la base de antes"; exit 1; }
+          echo "Rollback OK: sin tabla huerfana, mismos datos, back andando y copia previa en $PREVIA"
+
+      # Si no se puede hacer la copia previa y la base tiene datos, no se toca nada.
+      - name: Restaurar corta si no puede hacer la copia previa
+        run: |
+          set -e
+          ARCHIVO=$(ls -t backups/atlas_gym_*.sql.gz | head -1)
+          mkdir -p /tmp/solo-lectura && chmod 555 /tmp/solo-lectura
+          TABLAS=$(docker exec -e MYSQL_PWD="$DB_PASS" atlas-mysql mysql -N -u atlas_app atlas_gym -e 'SHOW TABLES' | wc -l)
+          if BACKUP_DIR=/tmp/solo-lectura bash scripts/restore-mysql.sh "$ARCHIVO" --yes; then
+            echo "::error::restore-mysql.sh siguio sin copia previa"; exit 1
+          fi
+          [ "$(docker exec -e MYSQL_PWD="$DB_PASS" atlas-mysql mysql -N -u atlas_app atlas_gym -e 'SHOW TABLES' | wc -l)" = "$TABLAS" ] \
+            || { echo "::error::La base cambio aunque la restauracion corto"; exit 1; }
+          [ "$(docker inspect -f '{{.State.Running}}' atlas-backend)" = "true" ] \
+            || { echo "::error::El back quedo frenado aunque la restauracion corto antes de empezar"; exit 1; }
+          echo "OK: sin copia previa no se toco la base ni el back"
+
       - name: Simulacro de desastre (backup, borrar la base, restaurar)
         run: |
           set -e
@@ -154,7 +196,7 @@ jobs:
           echo "::error::Despues de restaurar, el login no funciona"; exit 1
 
       - name: Revisar scripts de backup (shellcheck)
-        run: shellcheck scripts/backup-mysql.sh scripts/verificar-backup.sh
+        run: shellcheck scripts/backup-mysql.sh scripts/restore-mysql.sh scripts/verificar-backup.sh
 
       # El backup restaurado en un MySQL temporal tiene que dar los mismos conteos que la base real.
       - name: Verificar backup en un MySQL temporal (verificar-backup.sh)
