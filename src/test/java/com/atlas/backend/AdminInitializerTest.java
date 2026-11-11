@@ -38,6 +38,7 @@ class AdminInitializerTest {
         Usuario admin = usuarios.findByEmailIgnoreCase(EMAIL).orElseThrow();
         assertThat(admin.getRol()).isEqualTo(Rol.ADMIN);
         assertThat(admin.isActivo()).isTrue();
+        assertThat(admin.isRequiereCambioPassword()).isTrue();
         assertThat(admin.getPassword()).isNotEqualTo(CLAVE_TEST);
         assertThat(encoder.matches(CLAVE_TEST, admin.getPassword())).isTrue();
         assertThat(output.getAll()).doesNotContain(CLAVE_TEST).doesNotContain(EMAIL);
@@ -60,6 +61,7 @@ class AdminInitializerTest {
     @Test
     void administradorExistenteNoSeDuplicaNiSeReactivaNiCambiaClave() {
         Usuario admin = crearUsuario(Rol.ADMIN);
+        assertThat(admin.isRequiereCambioPassword()).isFalse();
         String hash = admin.getPassword();
         long antes = usuarios.count();
         new AdminInitializer(usuarios, encoder, true, EMAIL.toUpperCase(), CLAVE_TEST).run();
@@ -68,6 +70,7 @@ class AdminInitializerTest {
         assertThat(usuarios.count()).isEqualTo(antes);
         assertThat(guardado.getPassword()).isEqualTo(hash);
         assertThat(guardado.isActivo()).isFalse();
+        assertThat(guardado.isRequiereCambioPassword()).isFalse();
     }
 
     @Test
