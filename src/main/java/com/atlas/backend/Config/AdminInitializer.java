@@ -99,6 +99,7 @@ public class AdminInitializer implements CommandLineRunner {
         admin.setPassword(encoder.encode(clave));
         admin.setRol(Rol.ADMIN);
         admin.setActivo(true);
+        admin.setRequiereCambioPassword(true);
         admin.setFechaCreacion(LocalDate.now());
         if (nombreMostrar != null && !nombreMostrar.isBlank()) {
             admin.setNombreMostrar(nombreMostrar.trim());
