@@ -1,7 +1,9 @@
 package com.atlas.backend.Repositorio;
 
 import com.atlas.backend.Modelo.Pago;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -9,9 +11,15 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PagoRepository extends JpaRepository<Pago, Long> {
+
+    /** Bloquea el comprobante hasta el fin de la transacción (completar saldo, anular o cambiar estado de a uno). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Pago p WHERE p.idPago = :id")
+    Optional<Pago> findByIdParaActualizar(@Param("id") Long id);
 
     @Query("SELECT p FROM Pago p LEFT JOIN FETCH p.planPago LEFT JOIN FETCH p.alumno WHERE p.alumno.idAlumno = :alumnoId ORDER BY p.fecha DESC, p.idPago DESC")
     List<Pago> findByAlumnoIdOrderByFechaDesc(@Param("alumnoId") Long alumnoId);
