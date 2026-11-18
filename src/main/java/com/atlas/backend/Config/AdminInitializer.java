@@ -55,6 +55,29 @@ public class AdminInitializer implements CommandLineRunner {
         this.email2 = email2;
         this.password2 = password2;
         this.nombre2 = nombre2;
+        // Se valida al crear el componente, ANTES de que el servidor abra el puerto: si se validara recién en
+        // run(), el back llegaba a responder (actualizar.sh decía "Listo") y enseguida quedaba reiniciándose.
+        // Una clave vacía se acepta acá: sirve si la cuenta ya existe (run() la exige solo para crearla).
+        if (enabled) {
+            validarClaveSiVino(password, "ATLAS_ADMIN_PASSWORD");
+            if (email2 != null && !email2.isBlank()) {
+                validarClaveSiVino(password2, "ATLAS_ADMIN2_PASSWORD");
+            }
+        }
+    }
+
+    private static void validarClaveSiVino(String clave, String variableClave) {
+        if (clave != null && !clave.isBlank()) {
+            validarClave(clave, variableClave);
+        }
+    }
+
+    private static void validarClave(String clave, String variableClave) {
+        if (clave == null || clave.isBlank() || clave.length() < 12
+                || clave.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalArgumentException(
+                    "Configure " + variableClave + " con al menos 12 caracteres y un maximo de 72 bytes UTF-8.");
+        }
     }
 
     /** Solo el titular principal (sin nombre visible ni segundo titular). */
@@ -89,11 +112,7 @@ public class AdminInitializer implements CommandLineRunner {
             log.info("El administrador inicial ya existe. Se conserva su configuracion.");
             return;
         }
-        if (clave == null || clave.isBlank() || clave.length() < 12
-                || clave.getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new IllegalArgumentException(
-                    "Configure " + variableClave + " con al menos 12 caracteres y un maximo de 72 bytes UTF-8.");
-        }
+        validarClave(clave, variableClave);
         Usuario admin = new Usuario();
         admin.setEmail(identificador);
         admin.setPassword(encoder.encode(clave));
