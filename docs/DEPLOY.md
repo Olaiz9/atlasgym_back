@@ -160,6 +160,37 @@ openssl rand -hex 24    # ATLAS_TOTEM_SECRET, DB_PASSWORD, MYSQL_ROOT_PASSWORD (
 túnel; `actualizar.sh` se frena si falta el token o si el sitio no es `:80`. El resto se deja como viene. Guardar una copia del `.env` en el gestor de claves del equipo: sin él,
 los backups no se pueden restaurar con las mismas credenciales.
 
+### 4.1 Copia fuera del servidor en Google Drive (obligatoria)
+
+Si se rompe el disco del servidor, se pierden también los backups locales. La copia va al
+Google Drive **de la cuenta del gimnasio**. Si no hay copia externa configurada (`RCLONE_REMOTE` o
+`BACKUP_OFFSITE_DIR`), o si la subida falla, el backup **termina con error** (el local queda igual) y
+el monitor del paso 4.2 avisa. Hasta configurarla, `actualizar.sh` tampoco puede hacer su backup previo (si el primer arranque falla a medias y se reintenta, o si se corre con `--sin-git`, necesita que la copia externa ya esté lista).
+
+1. En Google Drive (cuenta del gimnasio), crear la carpeta `ATLAS-backups`.
+2. En el servidor, como el usuario que corre el cron (`atlas`):
+   ```bash
+   rclone config
+   ```
+   - `n` (nuevo remoto) → nombre: `gdrive` → tipo: `drive` (Google Drive).
+   - `client_id` y `client_secret`: dejar vacíos. `scope`: `1` (acceso completo).
+   - "Use web browser to automatically authenticate?": **`n`** (el servidor no tiene navegador).
+     rclone muestra un comando `rclone authorize "drive" ...`: correrlo en una PC con rclone y
+     navegador, iniciar sesión **con la cuenta del gimnasio**, y pegar en el servidor el código que devuelve.
+   - "Configure this as a Shared Drive?": `n`. Confirmar y salir con `q`.
+3. Probar: `rclone lsd gdrive:` tiene que listar `ATLAS-backups`.
+4. En el `.env`: `RCLONE_REMOTE=gdrive:ATLAS-backups`
+
+> Las credenciales de rclone quedan en `~/.config/rclone/rclone.conf` del servidor. **Nunca** van al repo.
+
+### 4.2 Aviso si un día no hubo backup (healthchecks.io, gratis — obligatorio)
+
+1. Crear cuenta en healthchecks.io con el mail del gimnasio y un check "Backup ATLAS":
+   período **1 día**, gracia **2 horas**. Agregar como aviso el mail de los titulares y el del equipo.
+2. Copiar la URL del check (`https://hc-ping.com/...`) en el `.env`: `BACKUP_PING_URL=...`
+3. Cada backup que termina bien avisa a esa URL; si falla, avisa a `<url>/fail`. Si un día no llega
+   ningún aviso (servidor apagado, cron roto), healthchecks.io manda un mail igual.
+
 ---
 
 ## 5. Levantar el sistema
@@ -170,7 +201,7 @@ los backups no se pueden restaurar con las mismas credenciales.
 
 El script hace todo en orden y **se frena si algo está mal**:
 
-1. Revisa el `.env`: corta si quedó algún `CAMBIAR_...`, si falta el secreto del tótem o si el PIN está vacío, no tiene 4 dígitos o es `1234`. Avisa si todavía falta la copia de backups fuera del servidor (paso 7.1).
+1. Revisa el `.env`: corta si quedó algún `CAMBIAR_...`, si falta el secreto del tótem o si el PIN está vacío, no tiene 4 dígitos o es `1234`. Avisa si todavía falta la copia de backups fuera del servidor (paso 4.1) o el monitor de avisos (paso 4.2).
 2. Si la base ya existe, hace un **backup antes de tocar nada**.
 3. Trae el código nuevo de los dos repos (`git pull`).
 4. Construye y levanta los contenedores (la primera vez tarda 5–10 minutos).
@@ -238,7 +269,7 @@ Así las claves temporales no quedan escritas en el servidor. Las cuentas ya cre
 
 ## 7. Backups
 
-El sistema guarda plata y datos de personas: **sin backups no se entrega**.
+El sistema guarda plata y datos de personas: **sin backups no se entrega**. La copia externa en Google Drive (`RCLONE_REMOTE`, paso 4.1) y el aviso en healthchecks.io (`BACKUP_PING_URL`, paso 4.2) ya quedaron configurados antes del primer arranque.
 
 ```bash
 crontab -e
@@ -246,43 +277,13 @@ crontab -e
 30 3 * * * /opt/atlas/atlasgym_back/scripts/backup-mysql.sh >> /opt/atlas/backup.log 2>&1
 ```
 
+- Correr un backup a mano (`./scripts/backup-mysql.sh`) y verificar que el archivo aparezca en Google Drive (`ATLAS-backups`) y que el check de healthchecks.io quede en verde.
+- A la mañana siguiente del deploy, revisar que `/opt/atlas/backup.log` termine en `Backup terminado OK`.
 - Se guardan en `backups/`, comprimidos, y se borran solos los de más de 14 días.
 - **Restaurar** (hace un backup de seguridad antes de pisar nada):
   ```bash
   ./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
   ```
-
-### 7.1 Copia fuera del servidor en Google Drive (obligatoria)
-
-Si se rompe el disco del servidor, se pierden también los backups locales. La copia va al
-Google Drive **de la cuenta del gimnasio**. Si no hay copia externa configurada (`RCLONE_REMOTE` o
-`BACKUP_OFFSITE_DIR`), o si la subida falla, el backup **termina con error** (el local queda igual) y
-el monitor del paso 7.2 avisa. Hasta configurarla, `actualizar.sh` tampoco puede hacer su backup previo.
-
-1. En Google Drive (cuenta del gimnasio), crear la carpeta `ATLAS-backups`.
-2. En el servidor, como el usuario que corre el cron:
-   ```bash
-   rclone config
-   ```
-   - `n` (nuevo remoto) → nombre: `gdrive` → tipo: `drive` (Google Drive).
-   - `client_id` y `client_secret`: dejar vacíos. `scope`: `1` (acceso completo).
-   - "Use web browser to automatically authenticate?": **`n`** (el servidor no tiene navegador).
-     rclone muestra un comando `rclone authorize "drive" ...`: correrlo en una PC con rclone y
-     navegador, iniciar sesión **con la cuenta del gimnasio**, y pegar en el servidor el código que devuelve.
-   - "Configure this as a Shared Drive?": `n`. Confirmar y salir con `q`.
-3. Probar: `rclone lsd gdrive:` tiene que listar `ATLAS-backups`.
-4. En el `.env`: `RCLONE_REMOTE=gdrive:ATLAS-backups`
-5. Correr un backup a mano (`./scripts/backup-mysql.sh`) y ver el archivo en Drive.
-
-> Las credenciales de rclone quedan en `~/.config/rclone/rclone.conf` del servidor. **Nunca** van al repo.
-
-### 7.2 Aviso si un día no hubo backup (healthchecks.io, gratis)
-
-1. Crear cuenta en healthchecks.io con el mail del gimnasio y un check "Backup ATLAS":
-   período **1 día**, gracia **2 horas**. Agregar como aviso el mail de los titulares y el del equipo.
-2. Copiar la URL del check (`https://hc-ping.com/...`) en el `.env`: `BACKUP_PING_URL=...`
-3. Cada backup que termina bien avisa a esa URL; si falla, avisa a `<url>/fail`. Si un día no llega
-   ningún aviso (servidor apagado, cron roto), healthchecks.io manda un mail igual.
 
 ### 7.3 Una vez por mes: comprobar que el backup sirve
 

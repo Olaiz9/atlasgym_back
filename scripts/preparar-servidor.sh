@@ -513,7 +513,7 @@ else
 fi
 FALTA_MANUAL+=("Entrar como '${USUARIO_ATLAS}' y clonar atlasgym_front en /opt/atlas (docs/DEPLOY.md, sección 3).")
 FALTA_MANUAL+=("Completar /opt/atlas/atlasgym_back/.env y ejecutar ./scripts/actualizar.sh (docs/DEPLOY.md, secciones 4 y 5).")
-FALTA_MANUAL+=("Configurar la copia externa de backups (rclone config o BACKUP_OFFSITE_DIR) y el cron diario (docs/DEPLOY.md, sección 7).")
+FALTA_MANUAL+=("Configurar la copia externa de backups (rclone config o BACKUP_OFFSITE_DIR) y el cron diario (docs/DEPLOY.md, pasos 4.1 y 7).")
 
 # --- 9. Resumen final --------------------------------------------------------
 echo
