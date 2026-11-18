@@ -30,6 +30,15 @@
         -Server
     }
 
+    # Catálogo local de la videoteca de ejercicios (vive en Next.js: app/api/ejercicios/route.ts).
+    # Sin esta regla antes de /api/*, Caddy manda /api/ejercicios al backend de Spring Boot y devuelve 403/404.
+    handle /api/ejercicios* {
+        reverse_proxy frontend:3000 {
+            header_up X-Real-IP {client_ip}
+            header_up X-Forwarded-For {client_ip}
+        }
+    }
+
     # API directa de Spring Boot. {client_ip} es la IP real (ver arriba); el back la usa para el
     # límite de intentos de login (server.forward-headers-strategy=framework).
     handle /api/* {
