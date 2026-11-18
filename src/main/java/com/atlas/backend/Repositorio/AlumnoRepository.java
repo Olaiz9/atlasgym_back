@@ -1,7 +1,9 @@
 package com.atlas.backend.Repositorio;
 
 import com.atlas.backend.Modelo.Alumno;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,14 @@ import java.util.Optional;
 public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
 
     Optional<Alumno> findByDni(String dni);
+
+    /**
+     * Bloquea la ficha del socio hasta el fin de la transacción: dos cobros simultáneos al mismo socio
+     * (doble toque o los dos titulares a la vez) se atienden de a uno y el segundo ve el primero.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Alumno a WHERE a.idAlumno = :id")
+    Optional<Alumno> findByIdParaCobro(@Param("id") Long id);
 
     @Query("SELECT a FROM Alumno a LEFT JOIN FETCH a.usuario LEFT JOIN FETCH a.planAlumno LEFT JOIN FETCH a.rutinaAlumno WHERE a.dni = :dni")
     Optional<Alumno> findByDniWithRelaciones(@Param("dni") String dni);
