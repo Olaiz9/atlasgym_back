@@ -33,7 +33,7 @@ también en modo túnel).
 ### El servidor
 | Requisito | Mínimo | Recomendado |
 |---|---|---|
-| Sistema | Ubuntu 22.04 / 24.04 (Linux de 64 bits) | — |
+| Sistema | Ubuntu 22.04 / 24.04 (Linux de 64 bits), **limpio y sin panel** (nada de Plesk, cPanel, CyberPanel ni plantillas "con Docker") | — |
 | Memoria | 2 GB (bajando los `*_MEM_LIMIT` del `.env`) | 4 GB (MySQL + Java + Node juntos; cada contenedor tiene un techo de memoria) |
 | Disco | 20 GB | 40 GB (los backups ocupan) |
 | Red | Salida a Internet (el túnel no necesita puertos abiertos ni IP pública) | — |
@@ -42,6 +42,10 @@ también en modo túnel).
 > **Hosting decidido:** VPS de Hostinger (KVM 2) a nombre del gimnasio, dominio con DNS en Cloudflare
 > (plan gratis) y túnel de Cloudflare. Como el túnel no necesita IP pública, la guía sirve igual para una
 > PC en el local.
+>
+> Si el servidor ya trae algo escuchando en el puerto 80 o 443 (`sudo ss -ltnp | grep -E ':(80|443) '`
+> muestra un proceso), el `docker compose up` falla con "port is already allocated". Con el túnel no hace
+> falta ese puerto: en el `.env` poner `CADDY_HTTP_PORT=8081` y `CADDY_HTTPS_PORT=8443`.
 
 ### Antes del día de la instalación (pedirle al gimnasio)
 - [ ] **Dominio** (ej. `gym.ejemplo.com.ar`) ya agregado a la cuenta de **Cloudflare del gimnasio**
@@ -56,6 +60,27 @@ también en modo túnel).
 - [ ] El contacto de privacidad está completo en `lib/datos-legales.ts` del front (`contactoPrivacidad`).
       Si falta, `/privacidad` muestra "datos pendientes".
 - [ ] Lo que se va a instalar está en `main` en **los dos repos** (paso 8: "Publicar una versión").
+
+### El día de la instalación, en orden
+
+Cada paso tiene su control: no pasar al siguiente hasta que dé lo esperado.
+
+| # | Paso | Control |
+|---|---|---|
+| 1 | Servidor preparado (paso 2) y reiniciado | `timedatectl` dice `America/Argentina/Buenos_Aires`; como `atlas`, `docker ps` no da error |
+| 2 | Sin `cloudflared` del sistema (paso 2.1) | `systemctl is-active cloudflared` → `inactive` |
+| 3 | Túnel creado y Cloudflare ajustado (paso 2.1) | Public Hostname → `caddy:80`; Email Obfuscation y Bot Fight Mode en Off |
+| 4 | Los dos repos en `main`, al día (paso 3) | `git log -1 --oneline` en cada repo = último commit de `main` en GitHub |
+| 5 | `.env` completo (paso 4) | `grep -c CAMBIAR .env` → `0`; `ls -l .env` → `-rw-------` |
+| 6 | Copia del `.env` guardada en el gestor de claves | La ve otra persona del equipo |
+| 7 | rclone con Google Drive (paso 4.1) | `rclone lsd gdrive:` lista `ATLAS-backups` |
+| 8 | healthchecks.io (paso 4.2) | `grep BACKUP_PING_URL .env` tiene una URL |
+| 9 | Sistema levantado (paso 5) | `docker compose ps`: todo `Up` / `healthy`; `curl -s localhost:8080/api/salud` → `"estado":"ok"` |
+| 10 | Túnel y red (paso 5) | Cloudflare: **Healthy**, un solo conector; la red de Docker en `172.16-31.x` |
+| 11 | Desde un celular **con datos móviles** (fuera del Wi-Fi del gimnasio) | `https://<dominio>/login` carga y muestra la versión instalada |
+| 12 | Titulares, configuración e importación (pasos 6.1 a 6.3) | Los dos entraron y cambiaron su clave; planes y alias cargados |
+| 13 | Alta inicial apagada (paso 5) | `grep BOOTSTRAP .env` → `false`; el back reiniciado |
+| 14 | Tablet, control final y backups (pasos 6.4, 6.5 y 7) | Backup manual en Drive, check verde en healthchecks.io, `crontab -l` con la línea del backup |
 
 ---
 
@@ -90,8 +115,12 @@ El script deja configurados automáticamente:
 
 ### Lo que sigue siendo manual
 - **Llave SSH:** si al crear el VPS no cargaste tu llave pública SSH, agregala en `/home/atlas/.ssh/authorized_keys` (o `/root/.ssh/authorized_keys`) y volvé a correr `sudo ./scripts/preparar-servidor.sh` para deshabilitar el login por contraseña.
+- **Reiniciar el servidor:** `sudo reboot` al terminar el script. `cron` toma la zona horaria recién al
+  arrancar (sin reiniciar, el backup de las 03:30 corre a la hora UTC) y el usuario `atlas` recién queda
+  en el grupo `docker` en una sesión nueva.
 - **Túnel de Cloudflare:** ver el paso 2.1.
 - **Usar el usuario `atlas`:** para los pasos siguientes, entrar como `atlas` (`su - atlas` o por SSH con `atlas@<ip>`).
+  Comprobar con `docker ps`: si dice "permission denied", salir y volver a entrar.
 
 ### 2.1 Crear el túnel de Cloudflare (una sola vez, desde el navegador)
 
@@ -100,12 +129,19 @@ El script deja configurados automáticamente:
 2. En "Install connector" elegir **Docker** y copiar **solo el token** (la cadena larga después de
    `--token`). No correr el comando que muestra: el contenedor ya está en `docker-compose.yml`.
    El token va en `CLOUDFLARE_TUNNEL_TOKEN` del `.env` (paso 4). Es una clave: no compartirlo.
+   Para volver a verlo más adelante: **Networks > Tunnels > atlas > Configure** (el comando de instalación lo trae).
+   > **No instalar `cloudflared` en el sistema** (`cloudflared service install`, el paquete `.deb`, etc.). Si ya
+   > está, desactivarlo: `sudo systemctl disable --now cloudflared`. Con dos conectores del mismo túnel,
+   > Cloudflare reparte las visitas entre los dos, y el del sistema no llega a `caddy:80` (está fuera de la
+   > red de Docker): la mitad de los pedidos dan **502** al azar. `systemctl is-active cloudflared` tiene que decir `inactive`.
 3. En **Public Hostname** agregar:
    - Subdomain: vacío (o el que se quiera); Domain: el del gimnasio.
    - Service: tipo **HTTP**, URL **`caddy:80`**.
 
    Cloudflare crea solo el registro DNS. No hace falta registro A ni la IP del servidor.
 4. En **SSL/TLS > Edge Certificates** activar **Always Use HTTPS**.
+5. Apagar lo que rompe la app: **Scrape Shield > Email Address Obfuscation: Off** (reescribe los mails del
+   HTML y puede romper la carga de la página) y **Security > Bots > Bot Fight Mode: Off** (puede frenar al tótem).
 
 El túnel aparece "Healthy" recién cuando el sistema esté levantado (paso 5).
 
@@ -124,6 +160,17 @@ cd /opt/atlas
 git clone --branch main https://github.com/Olaiz9/atlasgym_front.git
 cd atlasgym_back
 ```
+
+Los dos repos tienen que estar en la **misma rama** (`main` para una instalación real; `develop` solo para un
+ensayo) y al día. `actualizar.sh` hace `git pull` de la rama en la que esté parado cada repo:
+
+```bash
+git -C /opt/atlas/atlasgym_back  checkout main && git -C /opt/atlas/atlasgym_back  pull --ff-only
+git -C /opt/atlas/atlasgym_front checkout main && git -C /opt/atlas/atlasgym_front pull --ff-only
+git -C /opt/atlas/atlasgym_back log -1 --oneline; git -C /opt/atlas/atlasgym_front log -1 --oneline
+```
+
+Los dos últimos commits tienen que coincidir con los de esa rama en GitHub.
 
 ---
 
@@ -155,6 +202,16 @@ openssl rand -hex 24    # ATLAS_TOTEM_SECRET, DB_PASSWORD, MYSQL_ROOT_PASSWORD (
 | `CLOUDFLARE_TUNNEL_TOKEN` | El token del túnel (paso 2.1) |
 | `ATLAS_DOMAIN` | El dominio, sin `https://` (ej. `gym.ejemplo.com.ar`) |
 | `ATLAS_CORS_ALLOWED_ORIGIN` | `https://` + el dominio (ej. `https://gym.ejemplo.com.ar`) |
+
+> **Antes del primer arranque, tres cosas que después no se arreglan fácil:**
+> - **Claves solo con letras y números.** `docker compose` interpreta `$`, `#`, comillas y espacios del
+>   `.env`, y la clave que llega al sistema no es la que escribiste. Las de `openssl rand -hex` ya cumplen;
+>   cuidado con las claves temporales de los titulares, que se eligen a mano.
+> - **No cambiar `DB_PASSWORD` ni `MYSQL_ROOT_PASSWORD` después del primer arranque.** MySQL guarda las
+>   claves en su volumen la primera vez; si se cambian en el `.env`, el back ya no puede conectarse. Solo se
+>   arregla volviendo a la clave anterior o con `docker compose down -v`, que **borra la base entera**.
+> - **Revisar dos veces los mails de los titulares.** Son su usuario. El alta inicial no corrige una cuenta
+>   que ya existe: un mail mal escrito queda como una cuenta de más.
 
 `COMPOSE_PROFILES=tunel`, `ATLAS_CADDY_SITIO=:80` y `CADDY_BIND=127.0.0.1` ya vienen puestos para el
 túnel; `actualizar.sh` se frena si falta el token o si el sitio no es `:80`. El resto se deja como viene. Guardar una copia del `.env` en el gestor de claves del equipo: sin él,
@@ -207,9 +264,18 @@ El script hace todo en orden y **se frena si algo está mal**:
 4. Construye y levanta los contenedores (la primera vez tarda 5–10 minutos).
 5. Espera a que todo responda.
 
-Al terminar, abrir `https://<dominio>/login`: abajo tiene que decir `ATLAS Gym Platform · v1.0.0 · <commit>`.
-En el panel de Cloudflare el túnel tiene que figurar **Healthy**. Si no carga, ver los logs del túnel:
-`docker compose logs --tail 50 cloudflared`.
+Al terminar, abrir `https://<dominio>/login`: abajo tiene que decir `ATLAS Gym Platform · <versión> · <commit>`.
+En el panel de Cloudflare el túnel tiene que figurar **Healthy** y con **un solo conector** (si hay dos, ver
+el aviso del paso 2.1). Si no carga, ver los logs del túnel: `docker compose logs --tail 50 cloudflared`.
+
+Comprobar también que la red interna de Docker quedó dentro de `172.16.0.0/12` (el `Caddyfile` solo confía en
+esa red para leer la IP real de cada visitante; si quedara afuera, todos compartirían la misma IP y 5 logins
+fallidos bloquearían a todo el gimnasio):
+
+```bash
+docker network inspect atlasgym_back_default --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+# Tiene que empezar con 172.16. a 172.31. (por ejemplo 172.18.0.0/16)
+```
 
 ### Apagar el alta inicial de titulares (importante)
 Después de que **los dos titulares** entraron una vez (paso 6.1):
@@ -256,6 +322,10 @@ Así las claves temporales no quedan escritas en el servidor. Las cuentas ya cre
 - [ ] Anclar la página a la pantalla de inicio (botón "¿Cómo anclar ATLAS…?" del login).
 - [ ] Probar un ingreso con el DNI de un socio real y verlo en **Asistencias**.
 - [ ] Probar sin Internet: apagar el Wi-Fi, marcar un ingreso, prender el Wi-Fi y comprobar que se sincroniza.
+- [ ] Dejar la tablet en **modo kiosco** (fijar la pantalla en el navegador) y avisar a los titulares:
+      **si se corta Internet, no recargar la página del tótem.** Sigue marcando ingresos y los sube solos al
+      volver la señal, pero en esta versión una página recargada sin Internet no abre (tampoco anclada a la
+      pantalla de inicio) hasta que vuelva la conexión.
 - [ ] Probar el aviso: con el Wi-Fi de la tablet apagado, a los 5 minutos la app de los titulares tiene que mostrar
       **"El tótem no tiene señal"**. Al prender el Wi-Fi, el cartel se va solo en menos de un minuto.
 
@@ -285,7 +355,7 @@ crontab -e
   ./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
   ```
 
-### 7.3 Una vez por mes: comprobar que el backup sirve
+### 7.1 Una vez por mes: comprobar que el backup sirve
 
 ```bash
 ./scripts/verificar-backup.sh            # el último backup diario
@@ -377,6 +447,10 @@ docker compose logs --tail 100 backend   # o frontend, mysql, caddy, cloudflared
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
 | La web no carga (error 1033 o 502 de Cloudflare) | El túnel no está conectado o apunta mal | Panel de Cloudflare: el túnel tiene que estar "Healthy" y el destino ser `caddy:80` (paso 2.1). Ver `docker compose logs cloudflared` |
+| A veces carga y a veces da 502 | Hay dos conectores del túnel (el del sistema o un servidor viejo con el mismo token) | `sudo systemctl disable --now cloudflared`; si es otro servidor, apagarlo o rotar el token (paso 12) |
+| El backend no conecta a MySQL ("Access denied") después de tocar el `.env` | Se cambió `DB_PASSWORD` o `MYSQL_ROOT_PASSWORD` después del primer arranque | Volver a poner la clave anterior (está en la copia del `.env` del gestor de claves) |
+| `docker compose up` dice "port is already allocated" | Otro programa usa el 80 o el 443 | `CADDY_HTTP_PORT=8081` y `CADDY_HTTPS_PORT=8443` en el `.env` (paso 1) |
+| La web se ve rota o en blanco y la consola habla de "hydration" | Email Obfuscation de Cloudflare prendido | Apagarlo (paso 2.1, punto 5) |
 | Nadie puede entrar y dice "demasiados intentos" | El back no recibe la IP real de cada visitante | Revisar que el destino del túnel sea `caddy:80` y no `frontend:3000` (paso 2.1) |
 | El backend se reinicia en bucle | Falta una variable obligatoria o una migración no coincide | `logs backend`: el error dice qué variable o qué tabla |
 | El login no deja entrar a un titular | Clave mal copiada del `.env` | Revisar que no haya espacios de más; las claves distinguen mayúsculas |
@@ -384,6 +458,36 @@ docker compose logs --tail 100 backend   # o frontend, mysql, caddy, cloudflared
 | El tótem no registra ingresos | Clave de terminal distinta a `ATLAS_TOTEM_SECRET` | Desvincular la tablet y volver a vincularla (paso 6.4) |
 | Un socio no puede entrar | Todavía no tiene acceso u olvidó su clave | Ficha del socio → **Generar clave temporal** |
 | `actualizar.sh` dice "valores de ejemplo" | Quedó un `CAMBIAR_...` en el `.env` | Reemplazarlo por un valor generado (paso 4) |
+
+---
+
+## 12. Servidor perdido (se rompió, lo borraron o hay que mudarse)
+
+Los datos sobreviven en el Google Drive del gimnasio (`ATLAS-backups`). Para levantar todo en un servidor nuevo hace falta:
+
+- La **copia del `.env`** del gestor de claves (con las mismas claves de MySQL, JWT y tótem: así la tablet sigue vinculada).
+- Acceso a la **cuenta de Google del gimnasio** (para autorizar rclone) y a la de **Cloudflare** (para el túnel).
+- Saber **qué versión** estaba instalada (el tag, ej. `v1.0.1`): anotarla en el gestor de claves junto al `.env` en cada actualización.
+
+Pasos:
+
+1. **Primero cortar el servidor viejo**, si todavía existe: apagarlo, o en Cloudflare **rotar el token del túnel**
+   (en la página del túnel `atlas`, en Networks > Tunnels; el token nuevo va al `.env` del servidor nuevo).
+   Si el viejo revive con el mismo token, Cloudflare
+   reparte las visitas entre los dos y la mitad de los cobros irían a una base vieja.
+2. En el servidor nuevo: pasos 2 a 4 de esta guía, pero con el `.env` **copiado** (no uno nuevo) y el token
+   del túnel actual.
+3. Levantar **la misma versión** que tenía el backup, no una más nueva: `./scripts/actualizar.sh --version vX.Y.Z`.
+4. Bajar el último backup de Drive y restaurarlo:
+   ```bash
+   rclone lsl gdrive:ATLAS-backups | sort -k2,3 | tail -3      # los más recientes
+   rclone copy gdrive:ATLAS-backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz backups/
+   ./scripts/restore-mysql.sh backups/atlas_gym_AAAAMMDD_HHMMSS.sql.gz
+   ```
+5. Comprobar con los titulares: socios, últimos cobros y arqueo del último día. **Lo cargado después de ese
+   backup se perdió**: hay que volver a cargarlo a mano (cobros del día desde los comprobantes o el cuaderno).
+6. Recién con todo verificado, actualizar a la versión más nueva si hace falta (paso 8), y volver a programar el
+   cron de backups (paso 7).
 
 ---
 
