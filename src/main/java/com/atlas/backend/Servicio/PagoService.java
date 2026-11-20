@@ -72,7 +72,7 @@ public class PagoService {
             throw new BusinessException("El monto de la cuota debe ser mayor a $0.");
         }
 
-        Alumno alumno = alumnoRepository.findById(dto.alumnoId())
+        Alumno alumno = alumnoRepository.findByIdParaCobro(dto.alumnoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno", dto.alumnoId()));
 
         Plan plan = null;
@@ -227,7 +227,7 @@ public class PagoService {
 
     @Transactional
     public PagoResponseDto actualizarEstado(Long id, String nuevoEstadoStr, String operador) {
-        Pago pago = pagoRepository.findById(id)
+        Pago pago = pagoRepository.findByIdParaActualizar(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
 
         if (pago.getEstadoPago() == EstadoPago.ANULADO) {
@@ -265,7 +265,7 @@ public class PagoService {
 
     @Transactional
     public PagoResponseDto completarSaldoParcial(Long id, PagoCompletarSaldoRequestDto req, String operador) {
-        Pago pago = pagoRepository.findById(id)
+        Pago pago = pagoRepository.findByIdParaActualizar(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
 
         if (pago.getEstadoPago() == EstadoPago.ANULADO) {
@@ -314,7 +314,7 @@ public class PagoService {
         if (motivo == null || motivo.isBlank()) {
             throw new BusinessException("Debe ingresar el motivo de anulación del comprobante para auditoría.");
         }
-        Pago pago = pagoRepository.findById(id)
+        Pago pago = pagoRepository.findByIdParaActualizar(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
 
         if (pago.getEstadoPago() == EstadoPago.ANULADO) {
