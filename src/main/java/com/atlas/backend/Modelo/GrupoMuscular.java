@@ -4,6 +4,7 @@ public enum GrupoMuscular {
     PECHO,
     ESPALDA,
     PIERNAS,
+    GLUTEOS,
     HOMBROS,
     BRAZOS,
     CORE
