@@ -1,5 +1,6 @@
 package com.atlas.backend;
 
+import com.atlas.backend.Dto.AlumnoRequestDto;
 import com.atlas.backend.Dto.AlumnoResponseDto;
 import com.atlas.backend.Dto.PagoRequestDto;
 import com.atlas.backend.Dto.PagoResponseDto;
@@ -150,6 +151,64 @@ class CuotasEstadoYMultiMesTest {
                 .orElseThrow();
 
         assertThat(encontrado.estadoCuenta()).isEqualTo(EstadoCuenta.AL_DIA);
+    }
+
+    @Test
+    void reactivarSocioQueAbandono_dejaDeEstarInactivoHastaQuePasenOtros60Dias() {
+        Alumno alumno = new Alumno();
+        alumno.setNombre("Socio que vuelve");
+        alumno.setActivo(true);
+        alumno.setFechaAlta(LocalDate.of(2026, 3, 1));
+        List<Pago> historial = List.of(crearPago("2026-04", LocalDate.of(2026, 4, 5), 1, EstadoPago.PAGADO));
+
+        // Sin reactivación: abandonó (más de 60 días sin pagar y 3+ meses sin cobertura).
+        assertThat(alumnoService.calcularEstadoCuenta(alumno, historial, LocalDate.of(2026, 11, 22)))
+                .isEqualTo(EstadoCuenta.INACTIVO);
+
+        // El titular lo reactiva: pasa a deber (MOROSO), no queda escondido en Inactivos.
+        alumno.setFechaReactivacion(LocalDate.of(2026, 11, 20));
+        assertThat(alumnoService.calcularEstadoCuenta(alumno, historial, LocalDate.of(2026, 11, 22)))
+                .isEqualTo(EstadoCuenta.MOROSO);
+
+        // Si sigue sin pagar más de 60 días después de reactivarlo, vuelve a INACTIVO.
+        assertThat(alumnoService.calcularEstadoCuenta(alumno, historial, LocalDate.of(2027, 1, 20)))
+                .isEqualTo(EstadoCuenta.INACTIVO);
+    }
+
+    @Test
+    void reactivarSocioSinPagos_cuentaComoAltaNueva() {
+        Alumno alumno = new Alumno();
+        alumno.setNombre("Socio sin pagos que vuelve");
+        alumno.setActivo(true);
+        alumno.setFechaAlta(LocalDate.of(2026, 1, 10));
+        assertThat(alumnoService.calcularEstadoCuenta(alumno, List.of(), LocalDate.of(2026, 11, 22)))
+                .isEqualTo(EstadoCuenta.INACTIVO);
+
+        alumno.setFechaReactivacion(LocalDate.of(2026, 11, 20));
+        assertThat(alumnoService.calcularEstadoCuenta(alumno, List.of(), LocalDate.of(2026, 11, 22)))
+                .isEqualTo(EstadoCuenta.PENDIENTE);
+    }
+
+    @Test
+    void reactivarPorLaApiGuardaLaFechaSoloAlVolverDeLaBaja() {
+        Alumno alumno = new Alumno();
+        alumno.setNombre("Socio dado de baja");
+        alumno.setDni("30111222");
+        alumno.setActivo(false);
+        alumno.setFechaAlta(LocalDate.of(2026, 1, 10));
+        alumno = alumnoRepository.saveAndFlush(alumno);
+
+        AlumnoResponseDto reactivado = alumnoService.actualizar(alumno.getIdAlumno(),
+                new AlumnoRequestDto("Socio dado de baja", "30111222", null, null, null, null, true, null));
+        assertThat(reactivado.activo()).isTrue();
+        assertThat(reactivado.fechaReactivacion()).isEqualTo(LocalDate.now());
+        assertThat(reactivado.estadoCuenta()).isEqualTo(EstadoCuenta.PENDIENTE);
+
+        // Editar a un socio que ya estaba activo no cambia la fecha.
+        alumnoRepository.findById(alumno.getIdAlumno()).orElseThrow().setFechaReactivacion(LocalDate.of(2026, 11, 1));
+        AlumnoResponseDto editado = alumnoService.actualizar(alumno.getIdAlumno(),
+                new AlumnoRequestDto("Socio editado", "30111222", null, null, null, null, true, null));
+        assertThat(editado.fechaReactivacion()).isEqualTo(LocalDate.of(2026, 11, 1));
     }
 
     private Pago crearPago(String periodoMes, LocalDate fecha, int cantidadMeses, EstadoPago estado) {

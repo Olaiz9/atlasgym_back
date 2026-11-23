@@ -35,6 +35,10 @@ public class Alumno {
     @Column(name = "fecha_alta")
     private LocalDate fechaAlta;
 
+    /** Última vez que un titular reactivó al socio: cuenta como actividad para la regla de 60 días. */
+    @Column(name = "fecha_reactivacion")
+    private LocalDate fechaReactivacion;
+
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
 
@@ -174,6 +178,14 @@ public class Alumno {
 
     public void setFechaAlta(LocalDate fechaAlta) {
         this.fechaAlta = fechaAlta;
+    }
+
+    public LocalDate getFechaReactivacion() {
+        return fechaReactivacion;
+    }
+
+    public void setFechaReactivacion(LocalDate fechaReactivacion) {
+        this.fechaReactivacion = fechaReactivacion;
     }
 
     public boolean isActivo() {
