@@ -20,6 +20,8 @@ public record AlumnoResponseDto(
         Long rutinaId,
         String rutinaNombre,
         /** Versión de la ficha: mandarla de vuelta al editar para no pisar cambios de otro titular. */
-        Long version
+        Long version,
+        /** Última reactivación del socio (null si nunca se dio de baja y volvió). */
+        LocalDate fechaReactivacion
 ) {
 }
