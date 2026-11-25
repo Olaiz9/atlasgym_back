@@ -181,6 +181,9 @@ public class AlumnoService {
         alumno.setCelular(dto.celular());
 
         if (dto.activo() != null) {
+            if (dto.activo() && !alumno.isActivo()) {
+                alumno.setFechaReactivacion(LocalDate.now());
+            }
             alumno.setActivo(dto.activo());
         }
 
@@ -356,12 +359,19 @@ public class AlumnoService {
                         .filter(p -> p.getEstadoPago() != EstadoPago.ANULADO)
                         .toList();
 
+        // Reactivar a un socio cuenta como un alta nueva para la regla de los 60 días.
+        LocalDate reactivacion = alumno.getFechaReactivacion();
+        LocalDate inicio = alumno.getFechaAlta();
+        if (reactivacion != null && (inicio == null || reactivacion.isAfter(inicio))) {
+            inicio = reactivacion;
+        }
+
         // 1. Socio sin pagos activos registrados aún (excluyendo anulaciones)
         if (historial.isEmpty()) {
-            if (alumno.getFechaAlta() != null) {
-                YearMonth ymAlta = YearMonth.from(alumno.getFechaAlta());
+            if (inicio != null) {
+                YearMonth ymAlta = YearMonth.from(inicio);
                 long mesesDesdeAlta = ChronoUnit.MONTHS.between(ymAlta, ymActual);
-                long diasDesdeAlta = ChronoUnit.DAYS.between(alumno.getFechaAlta(), ref);
+                long diasDesdeAlta = ChronoUnit.DAYS.between(inicio, ref);
                 if (mesesDesdeAlta >= 2 || diasDesdeAlta > 60) {
                     return EstadoCuenta.INACTIVO;
                 }
@@ -402,8 +412,9 @@ public class AlumnoService {
         }
 
         // 3. Abandono (> 60 días sin actividad de pagos y >= 3 meses sin cobertura pagada)
-        boolean tieneMovimientoReciente = ultimaFechaMovimiento != null
-                && ChronoUnit.DAYS.between(ultimaFechaMovimiento, ref) <= 60;
+        boolean tieneMovimientoReciente = (ultimaFechaMovimiento != null
+                && ChronoUnit.DAYS.between(ultimaFechaMovimiento, ref) <= 60)
+                || (reactivacion != null && ChronoUnit.DAYS.between(reactivacion, ref) <= 60);
 
         if (maxPeriodoPagado != null) {
             long mesesSinCobertura = ChronoUnit.MONTHS.between(maxPeriodoPagado, ymActual);
@@ -558,7 +569,8 @@ public class AlumnoService {
                 estadoCuenta,
                 rutinaId,
                 rutinaNombre,
-                alumno.getVersionDatos()
+                alumno.getVersionDatos(),
+                alumno.getFechaReactivacion()
         );
     }
 
